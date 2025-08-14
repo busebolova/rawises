@@ -1,8 +1,8 @@
 "use client"
 
-import type React from "react"
 import { SessionProvider as NextAuthSessionProvider } from "next-auth/react"
 import type { Session } from "next-auth"
+import type React from "react"
 
 interface SessionProviderProps {
   children: React.ReactNode
