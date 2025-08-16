@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { generateSipayToken, sipayConfig, createSipayPaymentData } from "@/lib/sipay"
+import { generateSipayToken } from "@/lib/sipay"
 
 export async function POST(request: NextRequest) {
   try {
@@ -17,63 +17,74 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const sipayPaymentData = createSipayPaymentData({
-      orderId,
-      email,
-      amount,
-      userName,
-      userAddress: userAddress || userPhone, // Use phone as fallback for address
-      userPhone,
-      items,
-    })
-
-    const paytr_token = generateSipayToken({
-      orderId,
-      email,
-      amount,
-      userName,
-      userAddress: userAddress || userPhone,
-      userPhone,
-      items,
-    })
-
-    const paymentData = {
-      ...sipayPaymentData,
-      merchant_key: sipayConfig.merchantKey,
-      paytr_token,
+    const sipayPaymentData = {
+      merchant_id: process.env.SIPAY_MERCHANT_ID,
+      merchant_oid: orderId,
+      email: email,
+      payment_amount: (amount * 100).toString(), // Sipay expects amount in kuruş
+      currency: "TL",
+      test_mode: "0",
+      non_3d: "0",
+      merchant_ok_url: `${process.env.NEXT_PUBLIC_BASE_URL}/payment/success`,
+      merchant_fail_url: `${process.env.NEXT_PUBLIC_BASE_URL}/payment/failed`,
+      user_name: userName,
+      user_address: userAddress || userPhone,
+      user_phone: userPhone,
+      user_basket: JSON.stringify(
+        items.map((item: any) => [item.name, (item.price * 100).toString(), item.quantity.toString()]),
+      ),
+      debug_on: "1",
+      client_lang: "tr",
     }
 
-    console.log("[v0] Sending payment data to Sipay:", paymentData)
+    // Generate token server-side
+    const sipay_token = generateSipayToken(sipayPaymentData)
+    sipayPaymentData.sipay_token = sipay_token
 
-    // Sipay API'sine POST isteği gönder
-    const sipayResponse = await fetch(sipayConfig.baseUrl, {
+    console.log("[v0] Sending payment data to Sipay:", JSON.stringify(sipayPaymentData, null, 2))
+
+    const sipayResponse = await fetch("https://api.sipay.com.tr/ccpayment/api/paySmart2D", {
       method: "POST",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
       },
-      body: new URLSearchParams(paymentData as Record<string, string>).toString(),
+      body: new URLSearchParams(sipayPaymentData).toString(),
     })
 
     const sipayResult = await sipayResponse.text()
-    console.log("[v0] Sipay response:", sipayResult)
+    console.log("[v0] Sipay raw response:", sipayResult)
+    console.log("[v0] Sipay response status:", sipayResponse.status)
 
-    // Sipay yanıtını kontrol et
-    if (sipayResult.startsWith("SUCCESS")) {
-      const token = sipayResult.split(":")[1]
-      const paymentUrl = `https://www.paytr.com/odeme/guvenli/${token}`
+    let parsedResult
+    try {
+      parsedResult = JSON.parse(sipayResult)
+      console.log("[v0] Sipay parsed response:", parsedResult)
+    } catch (e) {
+      // Sipay might return HTML on error
+      console.log("[v0] Response is not JSON, treating as text:", sipayResult)
+      return NextResponse.json(
+        {
+          status: "error",
+          error_message: "Sipay'dan geçersiz yanıt alındı",
+        },
+        { status: 400 },
+      )
+    }
 
+    if (sipayResponse.ok && parsedResult.status === "success" && parsedResult.payment_url) {
       return NextResponse.json({
         status: "success",
-        payment_url: paymentUrl,
+        payment_url: parsedResult.payment_url,
         orderId: orderId,
         message: "Ödeme sayfasına yönlendiriliyorsunuz...",
       })
     } else {
-      console.error("Sipay Error:", sipayResult)
+      console.error("Sipay Error Response:", parsedResult)
       return NextResponse.json(
         {
           status: "error",
-          error_message: "Ödeme işlemi başlatılamadı: " + sipayResult,
+          error_message:
+            "Ödeme işlemi başlatılamadı: " + (parsedResult.reason || parsedResult.message || "Bilinmeyen hata"),
         },
         { status: 400 },
       )
@@ -83,7 +94,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         status: "error",
-        error_message: "Sunucu hatası oluştu",
+        error_message: "Sunucu hatası oluştu: " + error.message,
       },
       { status: 500 },
     )
