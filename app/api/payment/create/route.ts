@@ -25,9 +25,48 @@ function generateSipayHash(data: any): string {
 
 export async function POST(request: NextRequest) {
   try {
+    console.log("[v0] Environment variables check:")
+    console.log("[v0] SIPAY_MERCHANT_ID:", process.env.SIPAY_MERCHANT_ID ? "SET" : "UNDEFINED")
+    console.log("[v0] SIPAY_MERCHANT_KEY:", process.env.SIPAY_MERCHANT_KEY ? "SET" : "UNDEFINED")
+    console.log("[v0] SIPAY_BASE_URL:", process.env.SIPAY_BASE_URL ? process.env.SIPAY_BASE_URL : "UNDEFINED")
+    console.log(
+      "[v0] NEXT_PUBLIC_BASE_URL:",
+      process.env.NEXT_PUBLIC_BASE_URL ? process.env.NEXT_PUBLIC_BASE_URL : "UNDEFINED",
+    )
+
+    const requiredEnvVars = {
+      SIPAY_MERCHANT_ID: process.env.SIPAY_MERCHANT_ID,
+      SIPAY_MERCHANT_KEY: process.env.SIPAY_MERCHANT_KEY,
+      SIPAY_BASE_URL: process.env.SIPAY_BASE_URL,
+    }
+
+    const missingVars = Object.entries(requiredEnvVars)
+      .filter(([key, value]) => !value)
+      .map(([key]) => key)
+
+    if (missingVars.length > 0) {
+      console.error("[v0] Missing environment variables:", missingVars)
+      return NextResponse.json(
+        {
+          status: "error",
+          error_message: `Sunucu konfigürasyon hatası: ${missingVars.join(", ")} tanımlanmamış`,
+        },
+        { status: 500 },
+      )
+    }
+
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL?.startsWith("http")
+      ? process.env.NEXT_PUBLIC_BASE_URL
+      : `https://${process.env.NEXT_PUBLIC_BASE_URL || "www.rawises.com"}`
+
+    const sipayBaseUrl = process.env.SIPAY_BASE_URL || "https://app.sipay.com.tr/ccpayment"
+
+    console.log("[v0] Using baseUrl:", baseUrl)
+    console.log("[v0] Using sipayBaseUrl:", sipayBaseUrl)
+
     const body = await request.json()
 
-    const { orderId, email, amount, userName, userAddress, userPhone, items } = body
+    const { orderId, email, amount, userName, userPhone, items, userAddress } = body
 
     if (!orderId || !email || !amount || !userName || !userPhone || !items) {
       return NextResponse.json(
@@ -44,8 +83,8 @@ export async function POST(request: NextRequest) {
       merchant_oid: orderId,
       payment_amount: (amount * 100).toString(), // Sipay expects amount in kuruş
       currency: "TRY",
-      success_url: `${process.env.NEXT_PUBLIC_BASE_URL}/payment/success`,
-      fail_url: `${process.env.NEXT_PUBLIC_BASE_URL}/payment/failed`,
+      success_url: `${baseUrl}/payment/success`,
+      fail_url: `${baseUrl}/payment/failed`,
       user_name: userName,
       user_email: email,
       user_phone: userPhone,
@@ -70,7 +109,24 @@ export async function POST(request: NextRequest) {
       formData.append(key, value as string)
     })
 
-    const sipayResponse = await fetch(`${process.env.NEXT_PUBLIC_SIPAY_BASE_URL}/api/paySmart2D`, {
+    const sipayUrl = `${sipayBaseUrl}/api/paySmart2D`
+    console.log("[v0] Final Sipay URL:", sipayUrl)
+
+    // Validate URL before making request
+    try {
+      new URL(sipayUrl)
+    } catch (urlError) {
+      console.error("[v0] Invalid Sipay URL:", sipayUrl, urlError)
+      return NextResponse.json(
+        {
+          status: "error",
+          error_message: "Sipay URL konfigürasyon hatası",
+        },
+        { status: 500 },
+      )
+    }
+
+    const sipayResponse = await fetch(sipayUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",

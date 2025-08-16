@@ -12,13 +12,26 @@ import type { Product } from "@/lib/csv-parser"
 export default function HomePage() {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [showWelcome, setShowWelcome] = useState(true) // Enable welcome screen by default and check localStorage
+  const [showWelcome, setShowWelcome] = useState(true)
+  const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    const hasSeenWelcome = localStorage.getItem("hasSeenWelcome")
-    if (hasSeenWelcome === "true") {
-      setShowWelcome(false)
+    const checkWelcomeStatus = () => {
+      try {
+        const hasSeenWelcome = localStorage.getItem("hasSeenWelcome")
+        console.log("[v0] Welcome status check:", hasSeenWelcome)
+
+        if (hasSeenWelcome === "true") {
+          setShowWelcome(false)
+        }
+      } catch (error) {
+        console.log("[v0] localStorage not available, showing welcome screen")
+        setShowWelcome(true)
+      }
+      setIsLoading(false)
     }
+
+    setTimeout(checkWelcomeStatus, 100)
   }, [])
 
   useEffect(() => {
@@ -40,8 +53,24 @@ export default function HomePage() {
   }
 
   const handleWelcomeComplete = () => {
+    console.log("[v0] Welcome completed, setting localStorage")
     setShowWelcome(false)
-    localStorage.setItem("hasSeenWelcome", "true")
+    try {
+      localStorage.setItem("hasSeenWelcome", "true")
+    } catch (error) {
+      console.log("[v0] Could not save to localStorage")
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 mx-auto"></div>
+          <p className="mt-2 text-gray-600">Yükleniyor...</p>
+        </div>
+      </div>
+    )
   }
 
   return (

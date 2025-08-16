@@ -95,6 +95,14 @@ export function createSipayPaymentData(orderData: {
   const basketStr = formatUserBasket(orderData.items)
   const amountInKurus = (orderData.amount * 100).toString() // KDV hariç tutar kuruş cinsinden
 
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://www.rawises.com"
+  const successUrl = `${baseUrl}/payment/success`
+  const failUrl = `${baseUrl}/payment/failed`
+
+  console.log("[v0] Base URL:", baseUrl)
+  console.log("[v0] Success URL:", successUrl)
+  console.log("[v0] Fail URL:", failUrl)
+
   return {
     merchant_id: sipayConfig.merchantId,
     merchant_oid: orderData.orderId,
@@ -103,8 +111,8 @@ export function createSipayPaymentData(orderData: {
     currency: "TL",
     test_mode: "1", // Test modu - canlıda "0" olacak
     non_3d: "0", // 3D Secure aktif
-    merchant_ok_url: `${process.env.NEXT_PUBLIC_BASE_URL || "https://www.rawises.com"}/payment/success`,
-    merchant_fail_url: `${process.env.NEXT_PUBLIC_BASE_URL || "https://www.rawises.com"}/payment/failed`,
+    merchant_ok_url: successUrl,
+    merchant_fail_url: failUrl,
     user_name: orderData.userName,
     user_address: orderData.userAddress,
     user_phone: orderData.userPhone,
