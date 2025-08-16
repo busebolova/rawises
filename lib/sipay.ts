@@ -33,11 +33,11 @@ export interface CartItem {
 }
 
 export const sipayConfig: SipayConfig = {
-  merchantId: "13174794",
-  merchantKey: "$2y$10$RwIRCb8UmjFrv6LR3kdJ0ePwxNPkKFQi1hC7xzHOm07w18lWIOPtO",
-  appId: "11ac0243ff9c07f67704f9ec8880d002",
-  appSecret: "ecd2a1cd72e98bec991e4d92e71bcb67",
-  baseUrl: "https://app.sipay.com.tr/ccpayment",
+  merchantId: process.env.SIPAY_MERCHANT_ID || "13174794",
+  merchantKey: process.env.SIPAY_MERCHANT_SALT || "$2y$10$RwIRCb8UmjFrv6LR3kdJ0ePwxNPkKFQi1hC7xzHOm07w18lWIOPtO",
+  appId: process.env.SIPAY_APP_KEY || "11ac0243ff9c07f67704f9ec8880d002",
+  appSecret: process.env.SIPAY_APP_SECRET || "ecd2a1cd72e98bec991e4d92e71bcb67",
+  baseUrl: process.env.SIPAY_BASE_URL || "https://app.sipay.com.tr/ccpayment",
 }
 
 export function generateOrderId(): string {
@@ -104,8 +104,8 @@ export function createSipayPaymentData(orderData: {
     currency: "TL",
     test_mode: "1", // Test modu - canlıda "0" olacak
     non_3d: "0", // 3D Secure aktif
-    merchant_ok_url: `${typeof window !== "undefined" ? window.location.origin : "https://rawises.com"}/payment/success`,
-    merchant_fail_url: `${typeof window !== "undefined" ? window.location.origin : "https://rawises.com"}/payment/failed`,
+    merchant_ok_url: `${process.env.NEXT_PUBLIC_BASE_URL || "https://www.rawises.com"}/payment/success`,
+    merchant_fail_url: `${process.env.NEXT_PUBLIC_BASE_URL || "https://www.rawises.com"}/payment/failed`,
     user_name: orderData.userName,
     user_address: orderData.userAddress,
     user_phone: orderData.userPhone,
@@ -113,4 +113,13 @@ export function createSipayPaymentData(orderData: {
     debug_on: "1", // Test için debug açık
     client_lang: "tr",
   }
+}
+
+export const sipayService = {
+  config: sipayConfig,
+  generateOrderId,
+  calculateTotal,
+  formatUserBasket,
+  generateSipayToken,
+  createSipayPaymentData,
 }

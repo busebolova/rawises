@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { useCartStore } from "@/lib/cart-store"
-import { PaymentModal } from "@/components/payment-modal"
+import { CheckoutModal } from "@/components/checkout-modal"
 import { useState } from "react"
 import Image from "next/image"
 
@@ -16,12 +16,12 @@ interface CartSidebarProps {
 export function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
   const { items, totalItems, totalPrice, totalPriceWithoutVAT, vatAmount, updateQuantity, removeItem, clearCart } =
     useCartStore()
-  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false)
+  const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState(false)
 
   if (!isOpen) return null
 
   const handleCheckout = () => {
-    setIsPaymentModalOpen(true)
+    setIsCheckoutModalOpen(true)
   }
 
   return (
@@ -155,8 +155,7 @@ export function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
         </div>
       </div>
 
-      {/* Payment Modal */}
-      <PaymentModal isOpen={isPaymentModalOpen} onClose={() => setIsPaymentModalOpen(false)} />
+      <CheckoutModal isOpen={isCheckoutModalOpen} onClose={() => setIsCheckoutModalOpen(false)} />
     </>
   )
 }
