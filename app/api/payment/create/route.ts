@@ -1,4 +1,22 @@
 import { type NextRequest, NextResponse } from "next/server"
+import crypto from "crypto"
+
+function generateSipayHash(data: any): string {
+  const merchantKey = process.env.SIPAY_MERCHANT_KEY!
+
+  // Create hash string in the format Sipay expects
+  const hashString = [
+    data.merchant_id,
+    data.invoice_id,
+    data.amount,
+    data.currency_code,
+    data.success_url,
+    data.fail_url,
+    merchantKey,
+  ].join("|")
+
+  return crypto.createHash("sha256").update(hashString).digest("hex")
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -17,10 +35,7 @@ export async function POST(request: NextRequest) {
     }
 
     const sipayPaymentData = {
-      app_id: process.env.SIPAY_APP_KEY,
-      app_secret: process.env.SIPAY_APP_SECRET,
       merchant_id: process.env.SIPAY_MERCHANT_ID,
-      merchant_key: process.env.SIPAY_MERCHANT_KEY,
       invoice_id: orderId,
       amount: (amount * 100).toString(), // Sipay expects amount in kuruş
       currency_code: "TRY",
@@ -37,6 +52,9 @@ export async function POST(request: NextRequest) {
       })),
     }
 
+    const hash = generateSipayHash(sipayPaymentData)
+    sipayPaymentData.hash = hash
+
     console.log("[v0] Sending payment data to Sipay:", JSON.stringify(sipayPaymentData, null, 2))
 
     const sipayResponse = await fetch("https://app.sipay.com.tr/ccpayment/api/paySmart2D", {
@@ -44,6 +62,7 @@ export async function POST(request: NextRequest) {
       headers: {
         "Content-Type": "application/json",
         Accept: "application/json",
+        Authorization: `Bearer ${process.env.SIPAY_APP_KEY}:${process.env.SIPAY_APP_SECRET}`,
       },
       body: JSON.stringify(sipayPaymentData),
     })
