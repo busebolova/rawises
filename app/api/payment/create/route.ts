@@ -4,17 +4,22 @@ import crypto from "crypto"
 function generateSipayHash(data: any): string {
   const merchantKey = process.env.SIPAY_MERCHANT_KEY!
 
-  // Sipay hash format: merchant_id|merchant_oid|payment_amount|currency|success_url|fail_url|merchant_key
   const hashString = [
     data.merchant_id,
     data.merchant_oid,
     data.payment_amount,
     data.currency,
+    data.user_name,
+    data.user_email,
+    data.user_phone,
+    data.user_address,
+    data.user_basket,
     data.success_url,
     data.fail_url,
     merchantKey,
   ].join("|")
 
+  console.log("[v0] Hash string:", hashString)
   return crypto.createHash("sha256").update(hashString).digest("hex")
 }
 
@@ -55,8 +60,9 @@ export async function POST(request: NextRequest) {
     }
 
     const hash = generateSipayHash(sipayPaymentData)
-    sipayPaymentData.sipay_token = hash
+    sipayPaymentData.hash = hash
 
+    console.log("[v0] Generated hash:", hash)
     console.log("[v0] Sending payment data to Sipay:", JSON.stringify(sipayPaymentData, null, 2))
 
     const formData = new URLSearchParams()
@@ -64,7 +70,7 @@ export async function POST(request: NextRequest) {
       formData.append(key, value as string)
     })
 
-    const sipayResponse = await fetch(`${process.env.NEXT_PUBLIC_SIPAY_BASE_URL}`, {
+    const sipayResponse = await fetch(`${process.env.NEXT_PUBLIC_SIPAY_BASE_URL}/api/paySmart2D`, {
       method: "POST",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
