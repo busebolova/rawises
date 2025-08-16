@@ -1,5 +1,4 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { generateSipayToken } from "@/lib/sipay"
 
 export async function POST(request: NextRequest) {
   try {
@@ -18,37 +17,35 @@ export async function POST(request: NextRequest) {
     }
 
     const sipayPaymentData = {
+      app_id: process.env.SIPAY_APP_KEY,
+      app_secret: process.env.SIPAY_APP_SECRET,
       merchant_id: process.env.SIPAY_MERCHANT_ID,
-      merchant_oid: orderId,
+      merchant_key: process.env.SIPAY_MERCHANT_KEY,
+      invoice_id: orderId,
+      amount: (amount * 100).toString(), // Sipay expects amount in kuruş
+      currency_code: "TRY",
+      success_url: `${process.env.NEXT_PUBLIC_BASE_URL}/payment/success`,
+      fail_url: `${process.env.NEXT_PUBLIC_BASE_URL}/payment/failed`,
+      name: userName,
       email: email,
-      payment_amount: (amount * 100).toString(), // Sipay expects amount in kuruş
-      currency: "TL",
-      test_mode: "0",
-      non_3d: "0",
-      merchant_ok_url: `${process.env.NEXT_PUBLIC_BASE_URL}/payment/success`,
-      merchant_fail_url: `${process.env.NEXT_PUBLIC_BASE_URL}/payment/failed`,
-      user_name: userName,
-      user_address: userAddress || userPhone,
-      user_phone: userPhone,
-      user_basket: JSON.stringify(
-        items.map((item: any) => [item.name, (item.price * 100).toString(), item.quantity.toString()]),
-      ),
-      debug_on: "1",
-      client_lang: "tr",
+      phone: userPhone,
+      address: userAddress || userPhone,
+      items: items.map((item: any) => ({
+        name: item.name,
+        price: (item.price * 100).toString(),
+        quantity: item.quantity.toString(),
+      })),
     }
-
-    // Generate token server-side
-    const sipay_token = generateSipayToken(sipayPaymentData)
-    sipayPaymentData.sipay_token = sipay_token
 
     console.log("[v0] Sending payment data to Sipay:", JSON.stringify(sipayPaymentData, null, 2))
 
-    const sipayResponse = await fetch("https://api.sipay.com.tr/ccpayment/api/paySmart2D", {
+    const sipayResponse = await fetch("https://app.sipay.com.tr/ccpayment/api/paySmart2D", {
       method: "POST",
       headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
+        "Content-Type": "application/json",
+        Accept: "application/json",
       },
-      body: new URLSearchParams(sipayPaymentData).toString(),
+      body: JSON.stringify(sipayPaymentData),
     })
 
     const sipayResult = await sipayResponse.text()
@@ -65,16 +62,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           status: "error",
-          error_message: "Sipay'dan geçersiz yanıt alındı",
+          error_message: "Sipay'dan geçersiz yanıt alındı: " + sipayResult.substring(0, 200),
         },
         { status: 400 },
       )
     }
 
-    if (sipayResponse.ok && parsedResult.status === "success" && parsedResult.payment_url) {
+    if (sipayResponse.ok && parsedResult.status === "success" && parsedResult.data?.payment_url) {
       return NextResponse.json({
         status: "success",
-        payment_url: parsedResult.payment_url,
+        payment_url: parsedResult.data.payment_url,
         orderId: orderId,
         message: "Ödeme sayfasına yönlendiriliyorsunuz...",
       })
@@ -84,7 +81,7 @@ export async function POST(request: NextRequest) {
         {
           status: "error",
           error_message:
-            "Ödeme işlemi başlatılamadı: " + (parsedResult.reason || parsedResult.message || "Bilinmeyen hata"),
+            "Ödeme işlemi başlatılamadı: " + (parsedResult.message || parsedResult.error || "Bilinmeyen hata"),
         },
         { status: 400 },
       )

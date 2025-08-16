@@ -135,36 +135,37 @@ export function PromotionalSlider() {
 
           <div className="flex-1 relative group">
             <div className="grid grid-cols-2 gap-4 max-w-2xl">
-              {getCurrentProducts().map((product) => (
-                <Card
-                  key={product.id}
-                  className="bg-white rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
-                >
-                  <div className="p-4">
-                    <div className="relative mb-3">
-                      <img
-                        src={product.image || "/placeholder.svg"}
-                        alt={product.name}
-                        className="w-full h-32 object-cover rounded-lg"
-                      />
-                      <div className="absolute top-2 right-2 bg-purple-600 text-white text-xs font-bold px-2 py-1 rounded-full">
-                        %{product.discount}
+              {getCurrentProducts() &&
+                getCurrentProducts().map((product) => (
+                  <Card
+                    key={product.id}
+                    className="bg-white rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+                  >
+                    <div className="p-4">
+                      <div className="relative mb-3">
+                        <img
+                          src={product.image || "/placeholder.svg"}
+                          alt={product.name}
+                          className="w-full h-32 object-cover rounded-lg"
+                        />
+                        <div className="absolute top-2 right-2 bg-purple-600 text-white text-xs font-bold px-2 py-1 rounded-full">
+                          %{product.discount}
+                        </div>
                       </div>
+
+                      <h4 className="font-semibold text-gray-800 mb-2 text-sm line-clamp-2">{product.name}</h4>
+
+                      <div className="mb-3">
+                        <span className="text-gray-400 line-through text-xs">{product.originalPrice}</span>
+                        <div className="text-purple-600 font-bold text-base">{product.discountPrice}</div>
+                      </div>
+
+                      <Button className="w-full bg-gradient-to-r from-rawises-500 to-purple-600 hover:from-rawises-600 hover:to-purple-700 text-white py-2 text-sm">
+                        Sepete Ekle
+                      </Button>
                     </div>
-
-                    <h4 className="font-semibold text-gray-800 mb-2 text-sm line-clamp-2">{product.name}</h4>
-
-                    <div className="mb-3">
-                      <span className="text-gray-400 line-through text-xs">{product.originalPrice}</span>
-                      <div className="text-purple-600 font-bold text-base">{product.discountPrice}</div>
-                    </div>
-
-                    <Button className="w-full bg-gradient-to-r from-rawises-500 to-purple-600 hover:from-rawises-600 hover:to-purple-700 text-white py-2 text-sm">
-                      Sepete Ekle
-                    </Button>
-                  </div>
-                </Card>
-              ))}
+                  </Card>
+                ))}
             </div>
 
             <Button

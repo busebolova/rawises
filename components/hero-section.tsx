@@ -59,34 +59,36 @@ export function HeroSection() {
 
           <div className="relative order-1 lg:order-2">
             <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:gap-6">
-              {heroProducts.slice(0, 4).map((product, index) => (
-                <div
-                  key={product.id}
-                  className={`bg-white/95 backdrop-blur-sm p-2 sm:p-3 lg:p-4 rounded-xl lg:rounded-2xl shadow-lg border border-rawises-100 hover:shadow-xl transition-all duration-300 hover:scale-105 ${
-                    index % 2 === 1 ? "mt-4 sm:mt-6 lg:mt-8" : ""
-                  }`}
-                >
-                  <div className="aspect-square mb-2 sm:mb-3 overflow-hidden rounded-lg lg:rounded-xl bg-gray-50">
-                    <Image
-                      src={product.imageUrl || "/placeholder.svg"}
-                      alt={product.name}
-                      width={120}
-                      height={120}
-                      className="w-full h-full object-cover sm:w-[140px] sm:h-[140px] lg:w-[180px] lg:h-[180px]"
-                      crossOrigin="anonymous"
-                      onError={(e) => {
-                        const target = e.target as HTMLImageElement
-                        target.src = "/placeholder.svg?height=120&width=120"
-                      }}
-                    />
-                  </div>
-                  <div className="text-center">
-                    <div className="bg-gradient-to-r from-rawises-600 to-brand-500 text-white px-2 sm:px-3 lg:px-4 py-1 sm:py-2 rounded-full text-xs sm:text-sm font-bold shadow-md">
-                      {product.discountPrice} TL
+              {heroProducts &&
+                heroProducts.length > 0 &&
+                heroProducts.slice(0, 4).map((product, index) => (
+                  <div
+                    key={product.id}
+                    className={`bg-white/95 backdrop-blur-sm p-2 sm:p-3 lg:p-4 rounded-xl lg:rounded-2xl shadow-lg border border-rawises-100 hover:shadow-xl transition-all duration-300 hover:scale-105 ${
+                      index % 2 === 1 ? "mt-4 sm:mt-6 lg:mt-8" : ""
+                    }`}
+                  >
+                    <div className="aspect-square mb-2 sm:mb-3 overflow-hidden rounded-lg lg:rounded-xl bg-gray-50">
+                      <Image
+                        src={product.imageUrl || "/placeholder.svg"}
+                        alt={product.name}
+                        width={120}
+                        height={120}
+                        className="w-full h-full object-cover sm:w-[140px] sm:h-[140px] lg:w-[180px] lg:h-[180px]"
+                        crossOrigin="anonymous"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement
+                          target.src = "/placeholder.svg?height=120&width=120"
+                        }}
+                      />
+                    </div>
+                    <div className="text-center">
+                      <div className="bg-gradient-to-r from-rawises-600 to-brand-500 text-white px-2 sm:px-3 lg:px-4 py-1 sm:py-2 rounded-full text-xs sm:text-sm font-bold shadow-md">
+                        {product.discountPrice} TL
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))}
             </div>
           </div>
         </div>

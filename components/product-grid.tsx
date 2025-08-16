@@ -203,10 +203,10 @@ export function ProductGrid() {
     return safePrice * 1.2
   }
 
-  const totalPages = Math.ceil(filteredProducts.length / productsPerPage)
+  const totalPages = Math.ceil((filteredProducts?.length || 0) / productsPerPage)
   const startIndex = (currentPage - 1) * productsPerPage
   const endIndex = startIndex + productsPerPage
-  const currentProducts = filteredProducts.slice(startIndex, endIndex)
+  const currentProducts = (filteredProducts || []).slice(startIndex, endIndex)
 
   const goToPage = (page: number) => {
     setCurrentPage(page)
@@ -250,7 +250,9 @@ export function ProductGrid() {
                     : "Öne Çıkan Ürünler"}
               </h2>
               <p className="text-sm lg:text-base text-rawises-600">
-                {activeFilter || searchQuery ? `${filteredProducts.length} ürün bulundu` : "En popüler makyaj ürünleri"}
+                {activeFilter || searchQuery
+                  ? `${filteredProducts?.length || 0} ürün bulundu`
+                  : "En popüler makyaj ürünleri"}
               </p>
             </div>
 
@@ -282,117 +284,121 @@ export function ProductGrid() {
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
-          {currentProducts.map((product) => {
-            const isAdded = addedItems.has(product.id)
-            const productSlug = createProductSlug(product)
-            const priceWithVAT = calculatePriceWithVAT(product.discountPrice || 0)
-            const salePriceWithVAT = calculatePriceWithVAT(product.salePrice || 0)
+          {currentProducts &&
+            currentProducts.length > 0 &&
+            currentProducts.map((product) => {
+              const isAdded = addedItems.has(product.id)
+              const productSlug = createProductSlug(product)
+              const priceWithVAT = calculatePriceWithVAT(product.discountPrice || 0)
+              const salePriceWithVAT = calculatePriceWithVAT(product.salePrice || 0)
 
-            return (
-              <Card
-                key={product.id}
-                className="group hover:shadow-lg transition-all duration-300 border-rawises-100 hover:border-rawises-300 flex flex-col h-full"
-              >
-                <Link href={`/product/${product.id}/${productSlug}`} className="block">
-                  <div className="relative aspect-square overflow-hidden rounded-t-lg">
-                    <Image
-                      src={product.imageUrl || "/placeholder.svg"}
-                      alt={product.name}
-                      fill
-                      className="object-cover group-hover:scale-105 transition-transform duration-300"
-                      crossOrigin="anonymous"
-                      onError={(e) => {
-                        const target = e.target as HTMLImageElement
-                        target.src = "/placeholder.svg?height=300&width=300"
-                      }}
-                    />
-                    <div className="absolute top-1 sm:top-2 left-1 sm:left-2">
-                      <Badge variant="destructive" className="bg-accent-500 hover:bg-accent-600 text-xs px-1 sm:px-2">
-                        %{calculateDiscountPercentage(product.salePrice, product.discountPrice)}
-                      </Badge>
-                    </div>
-                    <div className="absolute top-1 sm:top-2 right-1 sm:right-2">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="bg-white/80 hover:bg-white text-rawises-600 hover:text-brand-500 h-6 w-6 sm:h-8 sm:w-8 p-0"
-                        onClick={(e) => e.preventDefault()}
-                      >
-                        <Heart className="w-3 h-3 sm:w-4 sm:h-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </Link>
-
-                <CardContent className="p-2 sm:p-3 lg:p-4 flex flex-col flex-grow">
-                  <div className="mb-1 sm:mb-2">
-                    <Badge variant="outline" className="text-xs border-rawises-200 text-rawises-700 px-1 sm:px-2">
-                      {product.brand}
-                    </Badge>
-                  </div>
-
-                  <Link href={`/product/${product.id}/${productSlug}`}>
-                    <h3 className="font-semibold text-xs sm:text-sm mb-1 sm:mb-2 line-clamp-2 text-rawises-800 flex-grow leading-tight hover:text-rawises-600 transition-colors">
-                      {product.name}
-                    </h3>
-                  </Link>
-
-                  <p className="text-xs text-rawises-600 mb-2 sm:mb-3 line-clamp-1 hidden sm:block">
-                    {stripHtmlTags(product.description).substring(0, 40)}...
-                  </p>
-
-                  <div className="flex flex-col gap-1 mb-2 sm:mb-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-gray-500">KDV Hariç:</span>
-                      <div className="text-right">
-                        <span className="text-xs line-through text-gray-400">{product.salePrice || 0} TL</span>
-                        <div className="text-sm font-medium text-rawises-600">{product.discountPrice || 0} TL</div>
+              return (
+                <Card
+                  key={product.id}
+                  className="group hover:shadow-lg transition-all duration-300 border-rawises-100 hover:border-rawises-300 flex flex-col h-full"
+                >
+                  <Link href={`/product/${product.id}/${productSlug}`} className="block">
+                    <div className="relative aspect-square overflow-hidden rounded-t-lg">
+                      <Image
+                        src={product.imageUrl || "/placeholder.svg"}
+                        alt={product.name}
+                        fill
+                        className="object-cover group-hover:scale-105 transition-transform duration-300"
+                        crossOrigin="anonymous"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement
+                          target.src = "/placeholder.svg?height=300&width=300"
+                        }}
+                      />
+                      <div className="absolute top-1 sm:top-2 left-1 sm:left-2">
+                        <Badge variant="destructive" className="bg-accent-500 hover:bg-accent-600 text-xs px-1 sm:px-2">
+                          %{calculateDiscountPercentage(product.salePrice, product.discountPrice)}
+                        </Badge>
+                      </div>
+                      <div className="absolute top-1 sm:top-2 right-1 sm:right-2">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="bg-white/80 hover:bg-white text-rawises-600 hover:text-brand-500 h-6 w-6 sm:h-8 sm:w-8 p-0"
+                          onClick={(e) => e.preventDefault()}
+                        >
+                          <Heart className="w-3 h-3 sm:w-4 sm:h-4" />
+                        </Button>
                       </div>
                     </div>
+                  </Link>
 
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-gray-500 flex items-center gap-1">
-                        <Calculator className="w-3 h-3" />
-                        KDV Dahil:
-                      </span>
-                      <div className="text-right">
-                        <span className="text-xs line-through text-gray-400">{salePriceWithVAT.toFixed(2)} TL</span>
-                        <div className="text-sm sm:text-base lg:text-lg font-bold bg-gradient-to-r from-rawises-600 to-brand-500 bg-clip-text text-transparent">
-                          {priceWithVAT.toFixed(2)} TL
+                  <CardContent className="p-2 sm:p-3 lg:p-4 flex flex-col flex-grow">
+                    <div className="mb-1 sm:mb-2">
+                      <Badge variant="outline" className="text-xs border-rawises-200 text-rawises-700 px-1 sm:px-2">
+                        {product.brand}
+                      </Badge>
+                    </div>
+
+                    <Link href={`/product/${product.id}/${productSlug}`}>
+                      <h3 className="font-semibold text-xs sm:text-sm mb-1 sm:mb-2 line-clamp-2 text-rawises-800 flex-grow leading-tight hover:text-rawises-600 transition-colors">
+                        {product.name}
+                      </h3>
+                    </Link>
+
+                    <p className="text-xs text-rawises-600 mb-2 sm:mb-3 line-clamp-1 hidden sm:block">
+                      {stripHtmlTags(product.description).substring(0, 40)}...
+                    </p>
+
+                    <div className="flex flex-col gap-1 mb-2 sm:mb-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-gray-500">KDV Hariç:</span>
+                        <div className="text-right">
+                          <span className="text-xs line-through text-gray-400">{product.salePrice || 0} TL</span>
+                          <div className="text-sm font-medium text-rawises-600">{product.discountPrice || 0} TL</div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-gray-500 flex items-center gap-1">
+                          <Calculator className="w-3 h-3" />
+                          KDV Dahil:
+                        </span>
+                        <div className="text-right">
+                          <span className="text-xs line-through text-gray-400">
+                            {(salePriceWithVAT || 0).toFixed(2)} TL
+                          </span>
+                          <div className="text-sm sm:text-base lg:text-lg font-bold bg-gradient-to-r from-rawises-600 to-brand-500 bg-clip-text text-transparent">
+                            {(priceWithVAT || 0).toFixed(2)} TL
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
 
-                  <div className="mt-auto">
-                    <Button
-                      className={`w-full transition-all duration-300 text-xs sm:text-sm py-1 sm:py-2 ${
-                        isAdded
-                          ? "bg-accent-600 hover:bg-accent-700"
-                          : "bg-gradient-to-r from-rawises-600 to-brand-500 hover:from-rawises-700 hover:to-brand-600"
-                      }`}
-                      size="sm"
-                      onClick={() => handleAddToCart(product)}
-                    >
-                      {isAdded ? (
-                        <>
-                          <Check className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
-                          <span className="hidden sm:inline">Sepete Eklendi</span>
-                          <span className="sm:hidden">Eklendi</span>
-                        </>
-                      ) : (
-                        <>
-                          <ShoppingCart className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
-                          <span className="hidden sm:inline">Sepete Ekle</span>
-                          <span className="sm:hidden">Ekle</span>
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            )
-          })}
+                    <div className="mt-auto">
+                      <Button
+                        className={`w-full transition-all duration-300 text-xs sm:text-sm py-1 sm:py-2 ${
+                          isAdded
+                            ? "bg-accent-600 hover:bg-accent-700"
+                            : "bg-gradient-to-r from-rawises-600 to-brand-500 hover:from-rawises-700 hover:to-brand-600"
+                        }`}
+                        size="sm"
+                        onClick={() => handleAddToCart(product)}
+                      >
+                        {isAdded ? (
+                          <>
+                            <Check className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+                            <span className="hidden sm:inline">Sepete Eklendi</span>
+                            <span className="sm:hidden">Eklendi</span>
+                          </>
+                        ) : (
+                          <>
+                            <ShoppingCart className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+                            <span className="hidden sm:inline">Sepete Ekle</span>
+                            <span className="sm:hidden">Ekle</span>
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              )
+            })}
         </div>
 
         {totalPages > 1 && (
@@ -407,7 +413,7 @@ export function ProductGrid() {
               Önceki
             </Button>
 
-            {Array.from({ length: totalPages }).map((_, index) => {
+            {Array.from({ length: totalPages || 0 }).map((_, index) => {
               const page = index + 1
               const isCurrentPage = page === currentPage
 
@@ -449,7 +455,7 @@ export function ProductGrid() {
           </div>
         )}
 
-        {filteredProducts.length === 0 && !loading && (
+        {filteredProducts?.length === 0 && !loading && (
           <div className="text-center py-12">
             <div className="text-gray-400 mb-4">
               <Filter className="w-16 h-16 mx-auto mb-4" />

@@ -84,7 +84,7 @@ export function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
 
           {/* Cart Items */}
           <div className="flex-1 overflow-y-auto p-4">
-            {items.length === 0 ? (
+            {!items || items.length === 0 ? (
               <div className="text-center py-8">
                 <ShoppingBag className="w-12 h-12 mx-auto text-gray-400 mb-4" />
                 <p className="text-gray-500">Sepetiniz boş</p>

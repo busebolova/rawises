@@ -112,7 +112,7 @@ export function ProductDetailPage({ product, relatedProducts }: ProductDetailPag
             </div>
 
             {/* Thumbnail images - gelecekte çoklu görsel için */}
-            {productImages.length > 1 && (
+            {productImages && productImages.length > 1 && (
               <div className="flex gap-2 overflow-x-auto">
                 {productImages.map((image, index) => (
                   <button
@@ -290,7 +290,7 @@ export function ProductDetailPage({ product, relatedProducts }: ProductDetailPag
         </div>
 
         {/* Related Products */}
-        {relatedProducts.length > 0 && (
+        {relatedProducts && relatedProducts.length > 0 && (
           <div className="mt-16">
             <h2 className="text-2xl font-bold text-rawises-800 mb-8">Benzer Ürünler</h2>
             <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 lg:gap-6">
