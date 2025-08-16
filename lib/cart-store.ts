@@ -12,11 +12,15 @@ interface CartStore {
   items: CartItem[]
   totalItems: number
   totalPrice: number
+  totalPriceWithoutVAT: number
+  vatAmount: number
   addItem: (product: Product) => void
   removeItem: (productId: string) => void
   updateQuantity: (productId: string, quantity: number) => void
   clearCart: () => void
 }
+
+const VAT_RATE = 0.2 // %20 KDV
 
 export const useCartStore = create<CartStore>()(
   persist(
@@ -24,6 +28,8 @@ export const useCartStore = create<CartStore>()(
       items: [],
       totalItems: 0,
       totalPrice: 0,
+      totalPriceWithoutVAT: 0,
+      vatAmount: 0,
 
       addItem: (product: Product) => {
         const items = get().items
@@ -41,12 +47,14 @@ export const useCartStore = create<CartStore>()(
           }))
         }
 
-        // Update totals
+        // Update totals with VAT calculation
         const newItems = get().items
         const totalItems = newItems.reduce((sum, item) => sum + item.quantity, 0)
-        const totalPrice = newItems.reduce((sum, item) => sum + item.discountPrice * item.quantity, 0)
+        const totalPriceWithoutVAT = newItems.reduce((sum, item) => sum + item.discountPrice * item.quantity, 0)
+        const vatAmount = totalPriceWithoutVAT * VAT_RATE
+        const totalPrice = totalPriceWithoutVAT + vatAmount
 
-        set({ totalItems, totalPrice })
+        set({ totalItems, totalPrice, totalPriceWithoutVAT, vatAmount })
       },
 
       removeItem: (productId: string) => {
@@ -54,12 +62,14 @@ export const useCartStore = create<CartStore>()(
           items: state.items.filter((item) => item.id !== productId),
         }))
 
-        // Update totals
+        // Update totals with VAT calculation
         const newItems = get().items
         const totalItems = newItems.reduce((sum, item) => sum + item.quantity, 0)
-        const totalPrice = newItems.reduce((sum, item) => sum + item.discountPrice * item.quantity, 0)
+        const totalPriceWithoutVAT = newItems.reduce((sum, item) => sum + item.discountPrice * item.quantity, 0)
+        const vatAmount = totalPriceWithoutVAT * VAT_RATE
+        const totalPrice = totalPriceWithoutVAT + vatAmount
 
-        set({ totalItems, totalPrice })
+        set({ totalItems, totalPrice, totalPriceWithoutVAT, vatAmount })
       },
 
       updateQuantity: (productId: string, quantity: number) => {
@@ -72,16 +82,18 @@ export const useCartStore = create<CartStore>()(
           items: state.items.map((item) => (item.id === productId ? { ...item, quantity } : item)),
         }))
 
-        // Update totals
+        // Update totals with VAT calculation
         const newItems = get().items
         const totalItems = newItems.reduce((sum, item) => sum + item.quantity, 0)
-        const totalPrice = newItems.reduce((sum, item) => sum + item.discountPrice * item.quantity, 0)
+        const totalPriceWithoutVAT = newItems.reduce((sum, item) => sum + item.discountPrice * item.quantity, 0)
+        const vatAmount = totalPriceWithoutVAT * VAT_RATE
+        const totalPrice = totalPriceWithoutVAT + vatAmount
 
-        set({ totalItems, totalPrice })
+        set({ totalItems, totalPrice, totalPriceWithoutVAT, vatAmount })
       },
 
       clearCart: () => {
-        set({ items: [], totalItems: 0, totalPrice: 0 })
+        set({ items: [], totalItems: 0, totalPrice: 0, totalPriceWithoutVAT: 0, vatAmount: 0 })
       },
     }),
     {

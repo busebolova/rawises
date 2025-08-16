@@ -1,7 +1,8 @@
 "use client"
-import { X, Plus, Minus, ShoppingBag } from "lucide-react"
+import { X, Plus, Minus, ShoppingBag, Calculator } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Separator } from "@/components/ui/separator"
 import { useCartStore } from "@/lib/cart-store"
 import { PaymentModal } from "@/components/payment-modal"
 import { useState } from "react"
@@ -13,7 +14,8 @@ interface CartSidebarProps {
 }
 
 export function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
-  const { items, totalItems, totalPrice, updateQuantity, removeItem, clearCart } = useCartStore()
+  const { items, totalItems, totalPrice, totalPriceWithoutVAT, vatAmount, updateQuantity, removeItem, clearCart } =
+    useCartStore()
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false)
 
   if (!isOpen) return null
@@ -70,7 +72,10 @@ export function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
                       <h3 className="text-xs sm:text-sm font-medium line-clamp-2">{item.name}</h3>
                       <p className="text-xs text-gray-500 truncate">{item.brand}</p>
                       <div className="flex items-center justify-between mt-2">
-                        <span className="text-sm font-bold text-purple-600">{item.discountPrice} TL</span>
+                        <div>
+                          <span className="text-sm font-bold text-purple-600">{item.discountPrice} TL</span>
+                          <p className="text-xs text-gray-400">KDV Hariç</p>
+                        </div>
                         <div className="flex items-center gap-1 sm:gap-2">
                           <Button
                             size="sm"
@@ -106,12 +111,27 @@ export function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
             )}
           </div>
 
-          {/* Footer */}
+          {/* Footer with VAT Calculation */}
           {items.length > 0 && (
             <div className="border-t p-4 space-y-4">
-              <div className="flex justify-between items-center">
-                <span className="text-lg font-semibold">Toplam:</span>
-                <span className="text-xl font-bold text-purple-600">{totalPrice.toFixed(2)} TL</span>
+              {/* Price Breakdown */}
+              <div className="space-y-2">
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-gray-600">Ara Toplam (KDV Hariç):</span>
+                  <span className="font-medium">{totalPriceWithoutVAT.toFixed(2)} TL</span>
+                </div>
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-gray-600 flex items-center gap-1">
+                    <Calculator className="w-3 h-3" />
+                    KDV (%20):
+                  </span>
+                  <span className="font-medium text-orange-600">{vatAmount.toFixed(2)} TL</span>
+                </div>
+                <Separator />
+                <div className="flex justify-between items-center">
+                  <span className="text-lg font-semibold">Toplam (KDV Dahil):</span>
+                  <span className="text-xl font-bold text-purple-600">{totalPrice.toFixed(2)} TL</span>
+                </div>
               </div>
 
               <div className="space-y-2">
@@ -119,11 +139,16 @@ export function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
                   className="w-full bg-gradient-to-r from-rawises-600 to-brand-500 hover:from-rawises-700 hover:to-brand-600"
                   onClick={handleCheckout}
                 >
-                  Sepeti Onayla
+                  Sepeti Onayla ({totalPrice.toFixed(2)} TL)
                 </Button>
                 <Button variant="outline" className="w-full bg-transparent" onClick={clearCart}>
                   Sepeti Temizle
                 </Button>
+              </div>
+
+              {/* VAT Info */}
+              <div className="text-xs text-gray-500 text-center">
+                <p>* Tüm fiyatlara %20 KDV dahildir</p>
               </div>
             </div>
           )}

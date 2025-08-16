@@ -3,231 +3,351 @@
 import type React from "react"
 
 import { useState } from "react"
+import { ChevronDown, ChevronUp, Mail, Phone, MapPin, Facebook, Instagram, Twitter, Youtube } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Separator } from "@/components/ui/separator"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
-import {
-  ChevronDown,
-  ChevronUp,
-  ArrowUp,
-  Facebook,
-  Instagram,
-  Twitter,
-  Youtube,
-  Phone,
-  Mail,
-  MapPin,
-  Clock,
-} from "lucide-react"
-import Image from "next/image"
 import Link from "next/link"
+import Image from "next/image"
 
 export function Footer() {
   const [isLegalOpen, setIsLegalOpen] = useState(false)
+  const [isHelpOpen, setIsHelpOpen] = useState(false)
+  const [isCompanyOpen, setIsCompanyOpen] = useState(false)
   const [email, setEmail] = useState("")
 
   const handleNewsletterSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    console.log("Newsletter signup:", email)
+    // Newsletter kayıt işlemi burada yapılacak
+    console.log("Newsletter subscription:", email)
     setEmail("")
-    // Newsletter API entegrasyonu burada yapılacak
-  }
-
-  const scrollToTop = () => {
-    window.scrollTo({ top: 0, behavior: "smooth" })
-  }
-
-  const handleWhatsAppContact = () => {
-    const message = encodeURIComponent("Merhaba! Rawises ürünleri hakkında bilgi almak istiyorum.")
-    window.open(`https://wa.me/905073027313?text=${message}`, "_blank")
+    alert("Newsletter aboneliğiniz başarıyla oluşturuldu!")
   }
 
   return (
-    <footer className="bg-gray-50 border-t">
-      <div className="container mx-auto px-4 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {/* Şirket Bilgileri */}
-          <div className="space-y-4">
-            <Link href="/" className="inline-block">
-              <Image src="/rawises-logo.png" alt="Rawises" width={120} height={40} className="h-8 w-auto" />
-            </Link>
-            <p className="text-gray-600 text-sm leading-relaxed">
-              Rawises, güzellik ve kişisel bakım ürünlerinde güvenilir adresiniz. Kaliteli ürünler, uygun fiyatlar ve
-              hızlı teslimat ile yanınızdayız.
-            </p>
-            <div className="flex space-x-4">
-              <Button variant="ghost" size="sm" className="p-2 hover:bg-rawises-100">
-                <Facebook className="w-4 h-4 text-blue-600" />
-              </Button>
-              <Button variant="ghost" size="sm" className="p-2 hover:bg-rawises-100">
-                <Instagram className="w-4 h-4 text-pink-600" />
-              </Button>
-              <Button variant="ghost" size="sm" className="p-2 hover:bg-rawises-100">
-                <Twitter className="w-4 h-4 text-blue-400" />
-              </Button>
-              <Button variant="ghost" size="sm" className="p-2 hover:bg-rawises-100">
-                <Youtube className="w-4 h-4 text-red-600" />
-              </Button>
-            </div>
-          </div>
+    <footer className="bg-rawises-50 border-t border-rawises-100">
+      <div className="container mx-auto px-4 py-8 lg:py-12">
+        {/* Desktop Footer */}
+        <div className="hidden lg:block">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 lg:gap-12">
+            {/* Company Info */}
+            <div className="space-y-6">
+              <div>
+                <Image src="/rawises-logo.png" alt="Rawises" width={150} height={50} className="h-12 w-auto mb-4" />
+                <p className="text-rawises-600 text-sm leading-relaxed">
+                  Güzellik ve kişisel bakım ürünlerinde güvenilir adresiniz. Kaliteli ürünler, uygun fiyatlar ve hızlı
+                  teslimat.
+                </p>
+              </div>
 
-          {/* Hızlı Linkler */}
-          <div className="space-y-4">
-            <h3 className="font-semibold text-gray-900">Hızlı Linkler</h3>
-            <div className="space-y-2">
-              <Link href="/hakkimizda" className="block text-gray-600 hover:text-rawises-600 transition-colors text-sm">
-                Hakkımızda
-              </Link>
-              <Link href="/iletisim" className="block text-gray-600 hover:text-rawises-600 transition-colors text-sm">
-                İletişim
-              </Link>
-              <Button
-                onClick={handleWhatsAppContact}
-                variant="ghost"
-                className="p-0 h-auto text-gray-600 hover:text-rawises-600 transition-colors text-sm justify-start"
-              >
-                WhatsApp Destek
-              </Button>
-            </div>
-          </div>
-
-          {/* İletişim Bilgileri */}
-          <div className="space-y-4">
-            <h3 className="font-semibold text-gray-900">İletişim</h3>
-            <div className="space-y-3">
-              <div className="flex items-start space-x-3">
-                <MapPin className="w-4 h-4 text-rawises-600 mt-0.5 flex-shrink-0" />
-                <div className="text-sm text-gray-600">
-                  <p>Seyhan, Adana</p>
-                  <p>Türkiye</p>
+              {/* Contact Info */}
+              <div className="space-y-3">
+                <h3 className="font-semibold text-rawises-800 mb-3">İletişim</h3>
+                <div className="flex items-center gap-3 text-sm text-rawises-600">
+                  <Phone className="w-4 h-4 flex-shrink-0" />
+                  <span>+90 507 302 73 13</span>
+                </div>
+                <div className="flex items-center gap-3 text-sm text-rawises-600">
+                  <Mail className="w-4 h-4 flex-shrink-0" />
+                  <span>info@rawises.com</span>
+                </div>
+                <div className="flex items-start gap-3 text-sm text-rawises-600">
+                  <MapPin className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                  <span>İstanbul, Türkiye</span>
                 </div>
               </div>
-              <div className="flex items-center space-x-3">
-                <Phone className="w-4 h-4 text-rawises-600 flex-shrink-0" />
-                <Link
-                  href="tel:+905073027313"
-                  className="text-sm text-gray-600 hover:text-rawises-600 transition-colors"
-                >
-                  +90 507 302 73 13
-                </Link>
+
+              {/* Social Media */}
+              <div>
+                <h3 className="font-semibold text-rawises-800 mb-3">Sosyal Medya</h3>
+                <div className="flex gap-3">
+                  <Button size="sm" variant="outline" className="p-2 bg-transparent hover:bg-rawises-100">
+                    <Facebook className="w-4 h-4" />
+                  </Button>
+                  <Button size="sm" variant="outline" className="p-2 bg-transparent hover:bg-rawises-100">
+                    <Instagram className="w-4 h-4" />
+                  </Button>
+                  <Button size="sm" variant="outline" className="p-2 bg-transparent hover:bg-rawises-100">
+                    <Twitter className="w-4 h-4" />
+                  </Button>
+                  <Button size="sm" variant="outline" className="p-2 bg-transparent hover:bg-rawises-100">
+                    <Youtube className="w-4 h-4" />
+                  </Button>
+                </div>
               </div>
-              <div className="flex items-center space-x-3">
-                <Mail className="w-4 h-4 text-rawises-600 flex-shrink-0" />
-                <Link
-                  href="mailto:info@rawises.com"
-                  className="text-sm text-gray-600 hover:text-rawises-600 transition-colors"
-                >
-                  info@rawises.com
-                </Link>
+            </div>
+
+            {/* Quick Links */}
+            <div className="space-y-6">
+              <div>
+                <h3 className="font-semibold text-rawises-800 mb-4">Hızlı Linkler</h3>
+                <div className="space-y-2">
+                  <Link
+                    href="/hakkimizda"
+                    className="block text-sm text-rawises-600 hover:text-rawises-800 transition-colors"
+                  >
+                    Hakkımızda
+                  </Link>
+                  <Link
+                    href="/iletisim"
+                    className="block text-sm text-rawises-600 hover:text-rawises-800 transition-colors"
+                  >
+                    İletişim
+                  </Link>
+                  <Link href="/sss" className="block text-sm text-rawises-600 hover:text-rawises-800 transition-colors">
+                    Sıkça Sorulan Sorular
+                  </Link>
+                  <Link
+                    href="/musteri-hizmetleri"
+                    className="block text-sm text-rawises-600 hover:text-rawises-800 transition-colors"
+                  >
+                    Müşteri Hizmetleri
+                  </Link>
+                  <Link
+                    href="/iade-degisim"
+                    className="block text-sm text-rawises-600 hover:text-rawises-800 transition-colors"
+                  >
+                    İade & Değişim
+                  </Link>
+                </div>
               </div>
-              <div className="flex items-start space-x-3">
-                <Clock className="w-4 h-4 text-rawises-600 mt-0.5 flex-shrink-0" />
-                <div className="text-sm text-gray-600">
-                  <p>Pazartesi - Cumartesi</p>
-                  <p>09:00 - 18:00</p>
+
+              <div>
+                <h3 className="font-semibold text-rawises-800 mb-4">Yasal</h3>
+                <div className="space-y-2">
+                  <Link
+                    href="/kvkk"
+                    className="block text-sm text-rawises-600 hover:text-rawises-800 transition-colors"
+                  >
+                    KVKK
+                  </Link>
+                  <Link
+                    href="/gizlilik-politikasi"
+                    className="block text-sm text-rawises-600 hover:text-rawises-800 transition-colors"
+                  >
+                    Gizlilik Politikası
+                  </Link>
+                  <Link
+                    href="/kullanim-kosullari"
+                    className="block text-sm text-rawises-600 hover:text-rawises-800 transition-colors"
+                  >
+                    Kullanım Koşulları
+                  </Link>
+                  <Link
+                    href="/cerez-politikasi"
+                    className="block text-sm text-rawises-600 hover:text-rawises-800 transition-colors"
+                  >
+                    Çerez Politikası
+                  </Link>
+                  <Link
+                    href="/mesafeli-satis-sozlesmesi"
+                    className="block text-sm text-rawises-600 hover:text-rawises-800 transition-colors"
+                  >
+                    Mesafeli Satış Sözleşmesi
+                  </Link>
+                </div>
+              </div>
+            </div>
+
+            {/* Newsletter */}
+            <div className="space-y-6">
+              <div>
+                <h3 className="font-semibold text-rawises-800 mb-4">Newsletter</h3>
+                <p className="text-sm text-rawises-600 mb-4">
+                  Kampanyalar ve yeni ürünlerden haberdar olmak için e-bültenimize abone olun.
+                </p>
+                <form onSubmit={handleNewsletterSubmit} className="space-y-3">
+                  <input
+                    type="email"
+                    placeholder="E-posta adresiniz"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    className="w-full px-4 py-2 border border-rawises-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-rawises-500 focus:border-transparent text-sm"
+                  />
+                  <Button
+                    type="submit"
+                    className="w-full bg-gradient-to-r from-rawises-600 to-brand-500 hover:from-rawises-700 hover:to-brand-600"
+                  >
+                    Abone Ol
+                  </Button>
+                </form>
+              </div>
+
+              {/* Payment & Security */}
+              <div>
+                <h3 className="font-semibold text-rawises-800 mb-4">Güvenli Alışveriş</h3>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-sm text-rawises-600">
+                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                    <span>256-bit SSL Şifreleme</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm text-rawises-600">
+                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                    <span>3D Secure Ödeme</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm text-rawises-600">
+                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                    <span>Hızlı & Güvenli Teslimat</span>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
         </div>
 
-        <Separator className="my-8" />
+        {/* Mobile Footer */}
+        <div className="lg:hidden space-y-6">
+          {/* Logo & Company Info */}
+          <div className="text-center space-y-4">
+            <Image src="/rawises-logo.png" alt="Rawises" width={120} height={40} className="h-10 w-auto mx-auto" />
+            <p className="text-rawises-600 text-sm">Güzellik ve kişisel bakım ürünlerinde güvenilir adresiniz.</p>
+          </div>
 
-        {/* Newsletter */}
-        <div className="mb-8">
-          <div className="max-w-md mx-auto text-center">
-            <h3 className="font-semibold text-gray-900 mb-2">Bültenimize Abone Olun</h3>
-            <p className="text-gray-600 text-sm mb-4">Yeni ürünler ve özel fırsatlardan haberdar olun</p>
-            <form onSubmit={handleNewsletterSubmit} className="flex gap-2">
-              <Input
+          {/* Contact Info */}
+          <div className="text-center space-y-2">
+            <div className="flex items-center justify-center gap-2 text-sm text-rawises-600">
+              <Phone className="w-4 h-4" />
+              <span>+90 507 302 73 13</span>
+            </div>
+            <div className="flex items-center justify-center gap-2 text-sm text-rawises-600">
+              <Mail className="w-4 h-4" />
+              <span>info@rawises.com</span>
+            </div>
+          </div>
+
+          {/* Collapsible Sections */}
+          <div className="space-y-4">
+            {/* Company Links */}
+            <Collapsible open={isCompanyOpen} onOpenChange={setIsCompanyOpen}>
+              <CollapsibleTrigger className="flex items-center justify-between w-full p-3 bg-white rounded-lg border border-rawises-200">
+                <span className="font-medium text-rawises-800">Şirket</span>
+                {isCompanyOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              </CollapsibleTrigger>
+              <CollapsibleContent className="mt-2 p-3 bg-white rounded-lg border border-rawises-200">
+                <div className="space-y-2">
+                  <Link href="/hakkimizda" className="block text-sm text-rawises-600 hover:text-rawises-800 py-1">
+                    Hakkımızda
+                  </Link>
+                  <Link href="/iletisim" className="block text-sm text-rawises-600 hover:text-rawises-800 py-1">
+                    İletişim
+                  </Link>
+                  <Link
+                    href="/musteri-hizmetleri"
+                    className="block text-sm text-rawises-600 hover:text-rawises-800 py-1"
+                  >
+                    Müşteri Hizmetleri
+                  </Link>
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
+
+            {/* Help Links */}
+            <Collapsible open={isHelpOpen} onOpenChange={setIsHelpOpen}>
+              <CollapsibleTrigger className="flex items-center justify-between w-full p-3 bg-white rounded-lg border border-rawises-200">
+                <span className="font-medium text-rawises-800">Yardım</span>
+                {isHelpOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              </CollapsibleTrigger>
+              <CollapsibleContent className="mt-2 p-3 bg-white rounded-lg border border-rawises-200">
+                <div className="space-y-2">
+                  <Link href="/sss" className="block text-sm text-rawises-600 hover:text-rawises-800 py-1">
+                    Sıkça Sorulan Sorular
+                  </Link>
+                  <Link href="/iade-degisim" className="block text-sm text-rawises-600 hover:text-rawises-800 py-1">
+                    İade & Değişim
+                  </Link>
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
+
+            {/* Legal Links */}
+            <Collapsible open={isLegalOpen} onOpenChange={setIsLegalOpen}>
+              <CollapsibleTrigger className="flex items-center justify-between w-full p-3 bg-white rounded-lg border border-rawises-200">
+                <span className="font-medium text-rawises-800">Yasal Bilgiler</span>
+                {isLegalOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              </CollapsibleTrigger>
+              <CollapsibleContent className="mt-2 p-3 bg-white rounded-lg border border-rawises-200">
+                <div className="space-y-2">
+                  <Link href="/kvkk" className="block text-sm text-rawises-600 hover:text-rawises-800 py-1">
+                    KVKK
+                  </Link>
+                  <Link
+                    href="/gizlilik-politikasi"
+                    className="block text-sm text-rawises-600 hover:text-rawises-800 py-1"
+                  >
+                    Gizlilik Politikası
+                  </Link>
+                  <Link
+                    href="/kullanim-kosullari"
+                    className="block text-sm text-rawises-600 hover:text-rawises-800 py-1"
+                  >
+                    Kullanım Koşulları
+                  </Link>
+                  <Link href="/cerez-politikasi" className="block text-sm text-rawises-600 hover:text-rawises-800 py-1">
+                    Çerez Politikası
+                  </Link>
+                  <Link
+                    href="/mesafeli-satis-sozlesmesi"
+                    className="block text-sm text-rawises-600 hover:text-rawises-800 py-1"
+                  >
+                    Mesafeli Satış Sözleşmesi
+                  </Link>
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
+          </div>
+
+          {/* Newsletter Mobile */}
+          <div className="bg-white p-4 rounded-lg border border-rawises-200">
+            <h3 className="font-semibold text-rawises-800 mb-3 text-center">Newsletter</h3>
+            <p className="text-sm text-rawises-600 mb-4 text-center">Kampanyalardan haberdar olun</p>
+            <form onSubmit={handleNewsletterSubmit} className="space-y-3">
+              <input
                 type="email"
                 placeholder="E-posta adresiniz"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="flex-1"
                 required
+                className="w-full px-4 py-2 border border-rawises-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-rawises-500 text-sm"
               />
-              <Button type="submit" className="bg-rawises-600 hover:bg-rawises-700">
+              <Button
+                type="submit"
+                className="w-full bg-gradient-to-r from-rawises-600 to-brand-500 hover:from-rawises-700 hover:to-brand-600"
+              >
                 Abone Ol
               </Button>
             </form>
           </div>
-        </div>
 
-        <Separator className="my-8" />
-
-        {/* Yasal Bilgiler - Collapsible */}
-        <Collapsible open={isLegalOpen} onOpenChange={setIsLegalOpen}>
-          <CollapsibleTrigger asChild>
-            <Button variant="ghost" className="w-full justify-between p-0 h-auto">
-              <span className="font-semibold text-gray-900">Yasal Bilgiler</span>
-              {isLegalOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-            </Button>
-          </CollapsibleTrigger>
-          <CollapsibleContent className="mt-4">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <Link href="/kvkk" className="text-sm text-gray-600 hover:text-rawises-600 transition-colors">
-                KVKK
-              </Link>
-              <Link
-                href="/gizlilik-politikasi"
-                className="text-sm text-gray-600 hover:text-rawises-600 transition-colors"
-              >
-                Gizlilik Politikası
-              </Link>
-              <Link
-                href="/kullanim-kosullari"
-                className="text-sm text-gray-600 hover:text-rawises-600 transition-colors"
-              >
-                Kullanım Koşulları
-              </Link>
-              <Link href="/cerez-politikasi" className="text-sm text-gray-600 hover:text-rawises-600 transition-colors">
-                Çerez Politikası
-              </Link>
-              <Link
-                href="/mesafeli-satis-sozlesmesi"
-                className="text-sm text-gray-600 hover:text-rawises-600 transition-colors"
-              >
-                Mesafeli Satış Sözleşmesi
-              </Link>
-            </div>
-          </CollapsibleContent>
-        </Collapsible>
-
-        <Separator className="my-8" />
-
-        {/* Ödeme Yöntemleri */}
-        <div className="text-center mb-8">
-          <h4 className="font-semibold text-gray-900 mb-4">Güvenli Ödeme</h4>
-          <div className="flex justify-center items-center space-x-4 flex-wrap gap-2">
-            <div className="bg-white p-2 rounded border">
-              <span className="text-xs font-semibold text-blue-600">VISA</span>
-            </div>
-            <div className="bg-white p-2 rounded border">
-              <span className="text-xs font-semibold text-red-600">MasterCard</span>
-            </div>
-            <div className="bg-white p-2 rounded border">
-              <span className="text-xs font-semibold text-green-600">Troy</span>
-            </div>
-            <div className="bg-white p-2 rounded border">
-              <span className="text-xs font-semibold text-purple-600">Sipay</span>
+          {/* Social Media Mobile */}
+          <div className="text-center">
+            <h3 className="font-semibold text-rawises-800 mb-3">Sosyal Medya</h3>
+            <div className="flex justify-center gap-3">
+              <Button size="sm" variant="outline" className="p-2 bg-transparent hover:bg-rawises-100">
+                <Facebook className="w-4 h-4" />
+              </Button>
+              <Button size="sm" variant="outline" className="p-2 bg-transparent hover:bg-rawises-100">
+                <Instagram className="w-4 h-4" />
+              </Button>
+              <Button size="sm" variant="outline" className="p-2 bg-transparent hover:bg-rawises-100">
+                <Twitter className="w-4 h-4" />
+              </Button>
+              <Button size="sm" variant="outline" className="p-2 bg-transparent hover:bg-rawises-100">
+                <Youtube className="w-4 h-4" />
+              </Button>
             </div>
           </div>
         </div>
 
-        {/* Alt Bilgi */}
-        <div className="flex flex-col md:flex-row justify-between items-center pt-8 border-t">
-          <p className="text-gray-500 text-sm mb-4 md:mb-0">© 2024 Rawises. Tüm hakları saklıdır.</p>
-          <Button
-            onClick={scrollToTop}
-            variant="ghost"
-            size="sm"
-            className="flex items-center space-x-2 text-gray-500 hover:text-rawises-600"
-          >
-            <ArrowUp className="w-4 h-4" />
-            <span>Yukarı Çık</span>
-          </Button>
+        {/* Bottom Bar */}
+        <div className="border-t border-rawises-200 mt-8 pt-6">
+          <div className="flex flex-col lg:flex-row items-center justify-between gap-4 text-sm text-rawises-600">
+            <div className="text-center lg:text-left">
+              <p>&copy; 2024 Rawises. Tüm hakları saklıdır.</p>
+            </div>
+            <div className="text-center lg:text-right">
+              <p>Tüm fiyatlara %20 KDV dahildir.</p>
+            </div>
+          </div>
         </div>
       </div>
     </footer>

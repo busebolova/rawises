@@ -3,331 +3,708 @@
 import type React from "react"
 
 import { useState, useEffect } from "react"
-import { Search, UserIcon, ShoppingCart, ChevronDown, Menu, LogOut } from "lucide-react"
+import { Search, ShoppingCart, User, Menu, X, Phone, Mail } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { CartSidebar } from "./cart-sidebar"
+import {
+  NavigationMenu,
+  NavigationMenuContent,
+  NavigationMenuItem,
+  NavigationMenuList,
+  NavigationMenuTrigger,
+} from "@/components/ui/navigation-menu"
+import { CartSidebar } from "@/components/cart-sidebar"
 import { useCartStore } from "@/lib/cart-store"
 import Image from "next/image"
 import Link from "next/link"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-
-interface MenuStructure {
-  [key: string]: string[]
-}
 
 export function Header() {
   const [isCartOpen, setIsCartOpen] = useState(false)
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
-  const [user, setUser] = useState<{ email: string; name: string; phone?: string } | null>(null)
-
-  // Zustand store'dan totalItems'ı doğru şekilde al
-  const totalItems = useCartStore((state) => state.totalItems)
-
-  useEffect(() => {
-    // Check if user is logged in
-    const userData = localStorage.getItem("user")
-    if (userData) {
-      setUser(JSON.parse(userData))
-    }
-  }, [])
-
-  // CSV'deki kategorilere göre menü yapısı
-  const menuStructure: MenuStructure = {
-    "Anne & Bebek": ["Bebek Bakım", "Emzik & Biberon", "Anne Bakım", "Bebek Gıda"],
-    "Ağız Bakım": ["Diş Fırçaları", "Diş Macunları", "Ağız Suları", "Diş İpi"],
-    "Cilt Bakımı": ["Yüz Bakımı", "Vücut Bakımı", "Güneş Ürünleri", "Epilasyon", "Nemlendirici", "Temizlik"],
-    "Kişisel Bakım": ["Tırnak Makası / El Bakımı", "Banyo & Vücut", "Hijyen", "Kişisel Temizlik"],
-    "Parfüm & Deodorant": ["Kadın Deodorant Roll-On", "Erkek Deodorant", "Parfüm", "Kolonya"],
-    "Saç Bakımı": ["Şampuan", "Fırçalar / Taraklar", "Saç Kremi", "Saç Maskesi", "Saç Spreyi"],
-    Makyaj: ["Ruj", "Maskara", "Fondöten", "Allık", "Göz Farı", "Kaş Kalemi", "Eyeliner"],
-    "Erkek Bakım": ["Tıraş Ürünleri", "Sakal Bakımı", "Erkek Cilt Bakımı", "After Shave"],
-    "Ev & Temizlik": ["Kolonyalar", "Hijyen Ürünleri", "Temizlik", "Dezenfektan"],
-  }
-
-  const handleCategoryClick = (category: string, subcategory?: string) => {
-    // Kategori filtreleme için event dispatch et - CSV kategorilerine göre
-    const filterEvent = new CustomEvent("categoryFilter", {
-      detail: {
-        category: category,
-        subcategory: subcategory,
-        // CSV'deki kategori alanına göre filtreleme
-        csvCategory: subcategory || category,
-      },
-    })
-    window.dispatchEvent(filterEvent)
-
-    // Mobil menüyü kapat
-    setIsMobileMenuOpen(false)
-  }
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const { totalItems } = useCartStore()
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
     if (searchQuery.trim()) {
-      // Arama için event dispatch et
-      const searchEvent = new CustomEvent("searchProducts", {
-        detail: { query: searchQuery.trim() },
-      })
-      window.dispatchEvent(searchEvent)
-    }
-  }
-
-  const handleSearchInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchQuery(e.target.value)
-
-    // Gerçek zamanlı arama
-    if (e.target.value.trim()) {
-      const searchEvent = new CustomEvent("searchProducts", {
-        detail: { query: e.target.value.trim() },
-      })
-      window.dispatchEvent(searchEvent)
+      window.dispatchEvent(new CustomEvent("searchProducts", { detail: { query: searchQuery } }))
     } else {
-      // Arama temizlendiğinde tüm ürünleri göster
-      const clearEvent = new CustomEvent("clearSearch")
-      window.dispatchEvent(clearEvent)
+      window.dispatchEvent(new CustomEvent("clearSearch"))
     }
   }
 
-  const handleLogout = () => {
-    localStorage.removeItem("user")
-    setUser(null)
-    window.location.reload()
+  const handleCategoryClick = (category: string, subcategory?: string, csvCategory?: string) => {
+    window.dispatchEvent(
+      new CustomEvent("categoryFilter", {
+        detail: { category, subcategory, csvCategory: csvCategory || subcategory || category },
+      }),
+    )
+    setIsMobileMenuOpen(false)
   }
+
+  const clearSearch = () => {
+    setSearchQuery("")
+    window.dispatchEvent(new CustomEvent("clearSearch"))
+  }
+
+  // Mobil menü kapatma
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 1024) {
+        setIsMobileMenuOpen(false)
+      }
+    }
+
+    window.addEventListener("resize", handleResize)
+    return () => window.removeEventListener("resize", handleResize)
+  }, [])
 
   return (
     <>
-      <header className="w-full font-poppins sticky top-0 z-50 bg-white">
-        {/* Top promotional banner */}
-        <div className="bg-gradient-to-r from-rawises-400 to-rawises-600 text-white text-center py-2 text-sm font-medium">
-          500 TL ÜZERİ ÜCRETSİZ KARGO
+      {/* Top Bar - Sadece desktop */}
+      <div className="hidden lg:block bg-rawises-50 border-b border-rawises-100">
+        <div className="container mx-auto px-4 py-2">
+          <div className="flex items-center justify-between text-sm text-rawises-700">
+            <div className="flex items-center gap-6">
+              <div className="flex items-center gap-2">
+                <Phone className="w-4 h-4" />
+                <span>+90 507 302 73 13</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Mail className="w-4 h-4" />
+                <span>info@rawises.com</span>
+              </div>
+            </div>
+            <div className="flex items-center gap-4">
+              <Link href="/musteri-hizmetleri" className="hover:text-rawises-900 transition-colors">
+                Müşteri Hizmetleri
+              </Link>
+              <Link href="/sss" className="hover:text-rawises-900 transition-colors">
+                SSS
+              </Link>
+            </div>
+          </div>
         </div>
+      </div>
 
-        {/* Main header */}
-        <div className="border-b bg-white shadow-sm">
-          <div className="container mx-auto px-4 py-4">
-            <div className="flex items-center justify-between gap-2 lg:gap-4">
-              {/* Mobile menu button */}
+      {/* Main Header */}
+      <header className="bg-white border-b border-rawises-100 sticky top-0 z-40">
+        <div className="container mx-auto px-4 py-3 lg:py-4">
+          <div className="flex items-center justify-between gap-4">
+            {/* Logo */}
+            <Link href="/" className="flex-shrink-0">
+              <Image
+                src="/rawises-logo.png"
+                alt="Rawises"
+                width={120}
+                height={40}
+                className="h-8 lg:h-10 w-auto"
+                priority
+              />
+            </Link>
+
+            {/* Desktop Search */}
+            <div className="hidden lg:flex flex-1 max-w-2xl mx-8">
+              <form onSubmit={handleSearch} className="flex w-full">
+                <div className="relative flex-1">
+                  <input
+                    type="text"
+                    placeholder="Ürün, marka veya kategori ara..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full px-4 py-2 border border-rawises-200 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-rawises-500 focus:border-transparent"
+                  />
+                  {searchQuery && (
+                    <button
+                      type="button"
+                      onClick={clearSearch}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+                <Button
+                  type="submit"
+                  className="bg-gradient-to-r from-rawises-600 to-brand-500 hover:from-rawises-700 hover:to-brand-600 rounded-l-none px-6"
+                >
+                  <Search className="w-4 h-4" />
+                </Button>
+              </form>
+            </div>
+
+            {/* Mobile Search */}
+            <div className="flex-1 lg:hidden">
+              <form onSubmit={handleSearch} className="flex">
+                <div className="relative flex-1">
+                  <input
+                    type="text"
+                    placeholder="Ara..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full px-3 py-2 text-sm border border-rawises-200 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-rawises-500"
+                  />
+                  {searchQuery && (
+                    <button
+                      type="button"
+                      onClick={clearSearch}
+                      className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  )}
+                </div>
+                <Button
+                  type="submit"
+                  size="sm"
+                  className="bg-gradient-to-r from-rawises-600 to-brand-500 rounded-l-none px-3"
+                >
+                  <Search className="w-4 h-4" />
+                </Button>
+              </form>
+            </div>
+
+            {/* Actions */}
+            <div className="flex items-center gap-2 lg:gap-4">
+              {/* Desktop User Menu */}
+              <div className="hidden lg:block">
+                <NavigationMenu>
+                  <NavigationMenuList>
+                    <NavigationMenuItem>
+                      <NavigationMenuTrigger className="bg-transparent hover:bg-rawises-50 data-[state=open]:bg-rawises-50">
+                        <User className="w-4 h-4 mr-2" />
+                        Hesabım
+                      </NavigationMenuTrigger>
+                      <NavigationMenuContent>
+                        <div className="w-48 p-2">
+                          <Link
+                            href="/auth/login"
+                            className="block px-3 py-2 text-sm hover:bg-rawises-50 rounded-md transition-colors"
+                          >
+                            Giriş Yap
+                          </Link>
+                          <Link
+                            href="/auth/register"
+                            className="block px-3 py-2 text-sm hover:bg-rawises-50 rounded-md transition-colors"
+                          >
+                            Üye Ol
+                          </Link>
+                          <div className="border-t border-rawises-100 my-2"></div>
+                          <Link
+                            href="/hesabim"
+                            className="block px-3 py-2 text-sm hover:bg-rawises-50 rounded-md transition-colors"
+                          >
+                            Hesabım
+                          </Link>
+                          <Link
+                            href="/siparislerim"
+                            className="block px-3 py-2 text-sm hover:bg-rawises-50 rounded-md transition-colors"
+                          >
+                            Siparişlerim
+                          </Link>
+                        </div>
+                      </NavigationMenuContent>
+                    </NavigationMenuItem>
+                  </NavigationMenuList>
+                </NavigationMenu>
+              </div>
+
+              {/* Mobile User Button */}
+              <Button variant="ghost" size="sm" className="lg:hidden p-2">
+                <User className="w-5 h-5" />
+              </Button>
+
+              {/* Cart Button */}
+              <Button variant="ghost" size="sm" onClick={() => setIsCartOpen(true)} className="relative p-2">
+                <ShoppingCart className="w-5 h-5" />
+                {totalItems > 0 && (
+                  <Badge className="absolute -top-1 -right-1 bg-accent-500 hover:bg-accent-600 text-white text-xs min-w-[18px] h-[18px] flex items-center justify-center p-0">
+                    {totalItems}
+                  </Badge>
+                )}
+              </Button>
+
+              {/* Mobile Menu Button */}
               <Button
                 variant="ghost"
                 size="sm"
-                className="lg:hidden"
                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                className="lg:hidden p-2"
               >
-                <Menu className="w-5 h-5" />
+                {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
               </Button>
-
-              {/* Logo */}
-              <Link href="/" className="flex-shrink-0">
-                <Image
-                  src="/rawises-logo.png"
-                  alt="Rawises"
-                  width={100}
-                  height={32}
-                  className="h-8 w-auto lg:h-10"
-                  priority
-                />
-              </Link>
-
-              {/* Search bar - hidden on mobile */}
-              <div className="hidden md:flex flex-1 max-w-md mx-4">
-                <form onSubmit={handleSearch} className="relative w-full">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                  <Input
-                    placeholder="Ürün, marka arayın..."
-                    value={searchQuery}
-                    onChange={handleSearchInputChange}
-                    className="pl-10 pr-12 py-2 w-full border-rawises-200 focus:border-rawises-500 focus:ring-rawises-500"
-                  />
-                  <Button
-                    type="submit"
-                    size="sm"
-                    className="absolute right-1 top-1/2 transform -translate-y-1/2 bg-rawises-600 hover:bg-rawises-700 h-8"
-                  >
-                    <Search className="w-4 h-4" />
-                  </Button>
-                </form>
-              </div>
-
-              {/* User actions */}
-              <div className="flex items-center gap-1 lg:gap-2">
-                {user ? (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="sm" className="hover:bg-rawises-50 hover:text-rawises-700">
-                        <UserIcon className="w-4 h-4 mr-1 lg:mr-2" />
-                        <span className="hidden lg:inline">{user.name.split(" ")[0]}</span>
-                        <ChevronDown className="w-3 h-3 ml-1" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-56">
-                      <DropdownMenuItem className="flex flex-col items-start">
-                        <span className="font-medium">{user.name}</span>
-                        <span className="text-xs text-gray-500">{user.email}</span>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem>
-                        <UserIcon className="w-4 h-4 mr-2" />
-                        Hesabım
-                      </DropdownMenuItem>
-                      <DropdownMenuItem>
-                        <ShoppingCart className="w-4 h-4 mr-2" />
-                        Siparişlerim
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={handleLogout} className="text-red-600">
-                        <LogOut className="w-4 h-4 mr-2" />
-                        Çıkış Yap
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                ) : (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="sm" className="hover:bg-rawises-50 hover:text-rawises-700">
-                        <UserIcon className="w-4 h-4 mr-1 lg:mr-2" />
-                        <span className="hidden lg:inline">Hesap</span>
-                        <ChevronDown className="w-3 h-3 ml-1" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-56">
-                      <DropdownMenuItem asChild>
-                        <Link href="/auth/login">
-                          <UserIcon className="w-4 h-4 mr-2" />
-                          Giriş Yap
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link href="/auth/register">
-                          <UserIcon className="w-4 h-4 mr-2" />
-                          Üye Ol
-                        </Link>
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                )}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="relative hover:bg-rawises-50 hover:text-rawises-700"
-                  onClick={() => setIsCartOpen(true)}
-                >
-                  <ShoppingCart className="w-4 h-4 mr-1 lg:mr-2" />
-                  <span className="hidden sm:inline">Sepet</span>
-                  {totalItems > 0 && (
-                    <Badge className="absolute -top-1 -right-1 bg-brand-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center p-0">
-                      {totalItems}
-                    </Badge>
-                  )}
-                </Button>
-              </div>
             </div>
           </div>
         </div>
 
-        {/* Mobile search bar */}
-        <div className="md:hidden border-t bg-white">
-          <div className="container mx-auto px-4 py-3">
-            <form onSubmit={handleSearch} className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-              <Input
-                placeholder="Ürün, marka arayın..."
-                value={searchQuery}
-                onChange={handleSearchInputChange}
-                className="pl-10 pr-12 py-2 w-full border-rawises-200 focus:border-rawises-500 focus:ring-rawises-500"
-              />
-              <Button
-                type="submit"
-                size="sm"
-                className="absolute right-1 top-1/2 transform -translate-y-1/2 bg-rawises-600 hover:bg-rawises-700 h-8"
-              >
-                <Search className="w-4 h-4" />
-              </Button>
-            </form>
-          </div>
-        </div>
-
-        {/* Navigation menu */}
-        <div className="bg-white border-b relative z-40">
+        {/* Desktop Navigation */}
+        <div className="hidden lg:block border-t border-rawises-100">
           <div className="container mx-auto px-4">
-            {/* Desktop navigation */}
-            <div className="hidden lg:flex justify-between items-center py-2">
-              {Object.keys(menuStructure).map((mainCategory) => (
-                <DropdownMenu key={mainCategory}>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      className="text-xs xl:text-sm font-medium hover:text-rawises-600 data-[state=open]:text-rawises-600 flex items-center gap-1 px-2 xl:px-3 focus:outline-none focus:ring-0 focus:border-none"
-                    >
-                      <span className="truncate">{mainCategory}</span>
-                      <ChevronDown className="w-3 h-3 flex-shrink-0" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start" className="w-56">
-                    <DropdownMenuItem
-                      className="hover:bg-rawises-50 hover:text-rawises-700 font-medium focus:outline-none focus:ring-0 cursor-pointer"
-                      onClick={() => handleCategoryClick(mainCategory)}
-                    >
-                      Tüm {mainCategory}
-                    </DropdownMenuItem>
-                    {menuStructure[mainCategory].map((subCategory) => (
-                      <DropdownMenuItem
-                        key={subCategory}
-                        className="hover:bg-rawises-50 hover:text-rawises-700 focus:outline-none focus:ring-0 cursor-pointer"
-                        onClick={() => handleCategoryClick(mainCategory, subCategory)}
+            <NavigationMenu className="max-w-none">
+              <NavigationMenuList className="flex-wrap justify-start gap-0">
+                {/* Anne & Bebek */}
+                <NavigationMenuItem>
+                  <NavigationMenuTrigger
+                    onClick={() => handleCategoryClick("Anne & Bebek")}
+                    className="bg-transparent hover:bg-rawises-50 data-[state=open]:bg-rawises-50"
+                  >
+                    Anne & Bebek
+                  </NavigationMenuTrigger>
+                  <NavigationMenuContent>
+                    <div className="w-48 p-2">
+                      <button
+                        onClick={() => handleCategoryClick("Anne & Bebek", "Bebek Bakım")}
+                        className="block w-full text-left px-3 py-2 text-sm hover:bg-rawises-50 rounded-md transition-colors"
                       >
-                        {subCategory}
-                      </DropdownMenuItem>
-                    ))}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              ))}
-            </div>
+                        Bebek Bakım
+                      </button>
+                      <button
+                        onClick={() => handleCategoryClick("Anne & Bebek", "Emzik & Biberon")}
+                        className="block w-full text-left px-3 py-2 text-sm hover:bg-rawises-50 rounded-md transition-colors"
+                      >
+                        Emzik & Biberon
+                      </button>
+                    </div>
+                  </NavigationMenuContent>
+                </NavigationMenuItem>
 
-            {/* Mobile navigation */}
-            {isMobileMenuOpen && (
-              <div className="lg:hidden border-t bg-white relative z-30">
-                <div className="py-4 space-y-3 max-h-96 overflow-y-auto">
-                  {!user && (
-                    <div className="border-b border-gray-100 pb-3 mb-3">
-                      <Link href="/auth/login">
-                        <Button variant="ghost" className="w-full justify-start text-rawises-700">
-                          <UserIcon className="w-4 h-4 mr-2" />
-                          Giriş Yap / Üye Ol
-                        </Button>
-                      </Link>
-                    </div>
-                  )}
-                  {Object.keys(menuStructure).map((mainCategory) => (
-                    <div key={mainCategory} className="border-b border-gray-100 pb-3">
-                      <Button
-                        variant="ghost"
-                        className="font-medium text-rawises-700 mb-2 px-2 w-full justify-start"
-                        onClick={() => handleCategoryClick(mainCategory)}
+                {/* Ağız Bakım */}
+                <NavigationMenuItem>
+                  <NavigationMenuTrigger
+                    onClick={() => handleCategoryClick("Ağız Bakım")}
+                    className="bg-transparent hover:bg-rawises-50 data-[state=open]:bg-rawises-50"
+                  >
+                    Ağız Bakım
+                  </NavigationMenuTrigger>
+                  <NavigationMenuContent>
+                    <div className="w-48 p-2">
+                      <button
+                        onClick={() => handleCategoryClick("Ağız Bakım", "Diş Fırçası")}
+                        className="block w-full text-left px-3 py-2 text-sm hover:bg-rawises-50 rounded-md transition-colors"
                       >
-                        {mainCategory}
-                      </Button>
-                      <div className="grid grid-cols-1 gap-1 pl-4">
-                        {menuStructure[mainCategory].map((subCategory) => (
-                          <Button
-                            key={subCategory}
-                            variant="ghost"
-                            size="sm"
-                            className="justify-start text-xs hover:bg-rawises-50 hover:text-rawises-700"
-                            onClick={() => handleCategoryClick(mainCategory, subCategory)}
-                          >
-                            {subCategory}
-                          </Button>
-                        ))}
-                      </div>
+                        Diş Fırçaları
+                      </button>
+                      <button
+                        onClick={() => handleCategoryClick("Ağız Bakım", "Diş Macunu")}
+                        className="block w-full text-left px-3 py-2 text-sm hover:bg-rawises-50 rounded-md transition-colors"
+                      >
+                        Diş Macunları
+                      </button>
+                      <button
+                        onClick={() => handleCategoryClick("Ağız Bakım", "Ağız Suyu")}
+                        className="block w-full text-left px-3 py-2 text-sm hover:bg-rawises-50 rounded-md transition-colors"
+                      >
+                        Ağız Suları
+                      </button>
                     </div>
-                  ))}
+                  </NavigationMenuContent>
+                </NavigationMenuItem>
+
+                {/* Cilt Bakımı */}
+                <NavigationMenuItem>
+                  <NavigationMenuTrigger
+                    onClick={() => handleCategoryClick("Cilt Bakımı")}
+                    className="bg-transparent hover:bg-rawises-50 data-[state=open]:bg-rawises-50"
+                  >
+                    Cilt Bakımı
+                  </NavigationMenuTrigger>
+                  <NavigationMenuContent>
+                    <div className="w-48 p-2">
+                      <button
+                        onClick={() => handleCategoryClick("Cilt Bakımı", "Yüz Bakımı")}
+                        className="block w-full text-left px-3 py-2 text-sm hover:bg-rawises-50 rounded-md transition-colors"
+                      >
+                        Yüz Bakımı
+                      </button>
+                      <button
+                        onClick={() => handleCategoryClick("Cilt Bakımı", "Vücut Bakımı")}
+                        className="block w-full text-left px-3 py-2 text-sm hover:bg-rawises-50 rounded-md transition-colors"
+                      >
+                        Vücut Bakımı
+                      </button>
+                      <button
+                        onClick={() => handleCategoryClick("Cilt Bakımı", "Güneş")}
+                        className="block w-full text-left px-3 py-2 text-sm hover:bg-rawises-50 rounded-md transition-colors"
+                      >
+                        Güneş Ürünleri
+                      </button>
+                    </div>
+                  </NavigationMenuContent>
+                </NavigationMenuItem>
+
+                {/* Kişisel Bakım */}
+                <NavigationMenuItem>
+                  <NavigationMenuTrigger
+                    onClick={() => handleCategoryClick("Kişisel Bakım")}
+                    className="bg-transparent hover:bg-rawises-50 data-[state=open]:bg-rawises-50"
+                  >
+                    Kişisel Bakım
+                  </NavigationMenuTrigger>
+                  <NavigationMenuContent>
+                    <div className="w-48 p-2">
+                      <button
+                        onClick={() => handleCategoryClick("Kişisel Bakım", "Tırnak")}
+                        className="block w-full text-left px-3 py-2 text-sm hover:bg-rawises-50 rounded-md transition-colors"
+                      >
+                        Tırnak Bakımı
+                      </button>
+                      <button
+                        onClick={() => handleCategoryClick("Kişisel Bakım", "Banyo")}
+                        className="block w-full text-left px-3 py-2 text-sm hover:bg-rawises-50 rounded-md transition-colors"
+                      >
+                        Banyo & Vücut
+                      </button>
+                    </div>
+                  </NavigationMenuContent>
+                </NavigationMenuItem>
+
+                {/* Parfüm & Deodorant */}
+                <NavigationMenuItem>
+                  <NavigationMenuTrigger
+                    onClick={() => handleCategoryClick("Parfüm")}
+                    className="bg-transparent hover:bg-rawises-50 data-[state=open]:bg-rawises-50"
+                  >
+                    Parfüm & Deodorant
+                  </NavigationMenuTrigger>
+                  <NavigationMenuContent>
+                    <div className="w-48 p-2">
+                      <button
+                        onClick={() => handleCategoryClick("Parfüm", "Kadın Deodorant")}
+                        className="block w-full text-left px-3 py-2 text-sm hover:bg-rawises-50 rounded-md transition-colors"
+                      >
+                        Kadın Deodorant
+                      </button>
+                      <button
+                        onClick={() => handleCategoryClick("Parfüm", "Erkek Deodorant")}
+                        className="block w-full text-left px-3 py-2 text-sm hover:bg-rawises-50 rounded-md transition-colors"
+                      >
+                        Erkek Deodorant
+                      </button>
+                      <button
+                        onClick={() => handleCategoryClick("Parfüm", "Parfüm")}
+                        className="block w-full text-left px-3 py-2 text-sm hover:bg-rawises-50 rounded-md transition-colors"
+                      >
+                        Parfüm
+                      </button>
+                    </div>
+                  </NavigationMenuContent>
+                </NavigationMenuItem>
+
+                {/* Saç Bakımı */}
+                <NavigationMenuItem>
+                  <NavigationMenuTrigger
+                    onClick={() => handleCategoryClick("Saç")}
+                    className="bg-transparent hover:bg-rawises-50 data-[state=open]:bg-rawises-50"
+                  >
+                    Saç Bakımı
+                  </NavigationMenuTrigger>
+                  <NavigationMenuContent>
+                    <div className="w-48 p-2">
+                      <button
+                        onClick={() => handleCategoryClick("Saç", "Şampuan")}
+                        className="block w-full text-left px-3 py-2 text-sm hover:bg-rawises-50 rounded-md transition-colors"
+                      >
+                        Şampuan
+                      </button>
+                      <button
+                        onClick={() => handleCategoryClick("Saç", "Fırça")}
+                        className="block w-full text-left px-3 py-2 text-sm hover:bg-rawises-50 rounded-md transition-colors"
+                      >
+                        Saç Fırçaları
+                      </button>
+                      <button
+                        onClick={() => handleCategoryClick("Saç", "Krem")}
+                        className="block w-full text-left px-3 py-2 text-sm hover:bg-rawises-50 rounded-md transition-colors"
+                      >
+                        Saç Kremi
+                      </button>
+                    </div>
+                  </NavigationMenuContent>
+                </NavigationMenuItem>
+
+                {/* Makyaj */}
+                <NavigationMenuItem>
+                  <NavigationMenuTrigger
+                    onClick={() => handleCategoryClick("Makyaj")}
+                    className="bg-transparent hover:bg-rawises-50 data-[state=open]:bg-rawises-50"
+                  >
+                    Makyaj
+                  </NavigationMenuTrigger>
+                  <NavigationMenuContent>
+                    <div className="w-48 p-2">
+                      <button
+                        onClick={() => handleCategoryClick("Makyaj", "Ruj")}
+                        className="block w-full text-left px-3 py-2 text-sm hover:bg-rawises-50 rounded-md transition-colors"
+                      >
+                        Ruj
+                      </button>
+                      <button
+                        onClick={() => handleCategoryClick("Makyaj", "Maskara")}
+                        className="block w-full text-left px-3 py-2 text-sm hover:bg-rawises-50 rounded-md transition-colors"
+                      >
+                        Maskara
+                      </button>
+                      <button
+                        onClick={() => handleCategoryClick("Makyaj", "Fondöten")}
+                        className="block w-full text-left px-3 py-2 text-sm hover:bg-rawises-50 rounded-md transition-colors"
+                      >
+                        Fondöten
+                      </button>
+                      <button
+                        onClick={() => handleCategoryClick("Makyaj", "Allık")}
+                        className="block w-full text-left px-3 py-2 text-sm hover:bg-rawises-50 rounded-md transition-colors"
+                      >
+                        Allık
+                      </button>
+                    </div>
+                  </NavigationMenuContent>
+                </NavigationMenuItem>
+
+                {/* Erkek Bakım */}
+                <NavigationMenuItem>
+                  <NavigationMenuTrigger
+                    onClick={() => handleCategoryClick("Erkek")}
+                    className="bg-transparent hover:bg-rawises-50 data-[state=open]:bg-rawises-50"
+                  >
+                    Erkek Bakım
+                  </NavigationMenuTrigger>
+                  <NavigationMenuContent>
+                    <div className="w-48 p-2">
+                      <button
+                        onClick={() => handleCategoryClick("Erkek", "Tıraş")}
+                        className="block w-full text-left px-3 py-2 text-sm hover:bg-rawises-50 rounded-md transition-colors"
+                      >
+                        Tıraş Ürünleri
+                      </button>
+                      <button
+                        onClick={() => handleCategoryClick("Erkek", "Sakal")}
+                        className="block w-full text-left px-3 py-2 text-sm hover:bg-rawises-50 rounded-md transition-colors"
+                      >
+                        Sakal Bakımı
+                      </button>
+                    </div>
+                  </NavigationMenuContent>
+                </NavigationMenuItem>
+              </NavigationMenuList>
+            </NavigationMenu>
+          </div>
+        </div>
+
+        {/* Mobile Menu */}
+        {isMobileMenuOpen && (
+          <div className="lg:hidden border-t border-rawises-100 bg-white">
+            <div className="container mx-auto px-4 py-4 max-h-[70vh] overflow-y-auto">
+              <div className="space-y-4">
+                {/* User Menu Mobile */}
+                <div className="border-b border-rawises-100 pb-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <User className="w-5 h-5 text-rawises-600" />
+                    <span className="font-medium text-rawises-800">Hesabım</span>
+                  </div>
+                  <div className="space-y-2 ml-7">
+                    <Link
+                      href="/auth/login"
+                      className="block text-sm text-rawises-600 hover:text-rawises-800"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                    >
+                      Giriş Yap
+                    </Link>
+                    <Link
+                      href="/auth/register"
+                      className="block text-sm text-rawises-600 hover:text-rawises-800"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                    >
+                      Üye Ol
+                    </Link>
+                  </div>
+                </div>
+
+                {/* Categories Mobile */}
+                <div className="space-y-3">
+                  {/* Anne & Bebek */}
+                  <div>
+                    <button
+                      onClick={() => handleCategoryClick("Anne & Bebek")}
+                      className="flex items-center justify-between w-full text-left font-medium text-rawises-800 py-2"
+                    >
+                      Anne & Bebek
+                    </button>
+                    <div className="ml-4 space-y-2">
+                      <button
+                        onClick={() => handleCategoryClick("Anne & Bebek", "Bebek Bakım")}
+                        className="block text-sm text-rawises-600 hover:text-rawises-800"
+                      >
+                        Bebek Bakım
+                      </button>
+                      <button
+                        onClick={() => handleCategoryClick("Anne & Bebek", "Emzik & Biberon")}
+                        className="block text-sm text-rawises-600 hover:text-rawises-800"
+                      >
+                        Emzik & Biberon
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Ağız Bakım */}
+                  <div>
+                    <button
+                      onClick={() => handleCategoryClick("Ağız Bakım")}
+                      className="flex items-center justify-between w-full text-left font-medium text-rawises-800 py-2"
+                    >
+                      Ağız Bakım
+                    </button>
+                    <div className="ml-4 space-y-2">
+                      <button
+                        onClick={() => handleCategoryClick("Ağız Bakım", "Diş Fırçası")}
+                        className="block text-sm text-rawises-600 hover:text-rawises-800"
+                      >
+                        Diş Fırçaları
+                      </button>
+                      <button
+                        onClick={() => handleCategoryClick("Ağız Bakım", "Diş Macunu")}
+                        className="block text-sm text-rawises-600 hover:text-rawises-800"
+                      >
+                        Diş Macunları
+                      </button>
+                      <button
+                        onClick={() => handleCategoryClick("Ağız Bakım", "Ağız Suyu")}
+                        className="block text-sm text-rawises-600 hover:text-rawises-800"
+                      >
+                        Ağız Suları
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Cilt Bakımı */}
+                  <div>
+                    <button
+                      onClick={() => handleCategoryClick("Cilt Bakımı")}
+                      className="flex items-center justify-between w-full text-left font-medium text-rawises-800 py-2"
+                    >
+                      Cilt Bakımı
+                    </button>
+                    <div className="ml-4 space-y-2">
+                      <button
+                        onClick={() => handleCategoryClick("Cilt Bakımı", "Yüz Bakımı")}
+                        className="block text-sm text-rawises-600 hover:text-rawises-800"
+                      >
+                        Yüz Bakımı
+                      </button>
+                      <button
+                        onClick={() => handleCategoryClick("Cilt Bakımı", "Vücut Bakımı")}
+                        className="block text-sm text-rawises-600 hover:text-rawises-800"
+                      >
+                        Vücut Bakımı
+                      </button>
+                      <button
+                        onClick={() => handleCategoryClick("Cilt Bakımı", "Güneş")}
+                        className="block text-sm text-rawises-600 hover:text-rawises-800"
+                      >
+                        Güneş Ürünleri
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Makyaj */}
+                  <div>
+                    <button
+                      onClick={() => handleCategoryClick("Makyaj")}
+                      className="flex items-center justify-between w-full text-left font-medium text-rawises-800 py-2"
+                    >
+                      Makyaj
+                    </button>
+                    <div className="ml-4 space-y-2">
+                      <button
+                        onClick={() => handleCategoryClick("Makyaj", "Ruj")}
+                        className="block text-sm text-rawises-600 hover:text-rawises-800"
+                      >
+                        Ruj
+                      </button>
+                      <button
+                        onClick={() => handleCategoryClick("Makyaj", "Maskara")}
+                        className="block text-sm text-rawises-600 hover:text-rawises-800"
+                      >
+                        Maskara
+                      </button>
+                      <button
+                        onClick={() => handleCategoryClick("Makyaj", "Fondöten")}
+                        className="block text-sm text-rawises-600 hover:text-rawises-800"
+                      >
+                        Fondöten
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Saç Bakımı */}
+                  <div>
+                    <button
+                      onClick={() => handleCategoryClick("Saç")}
+                      className="flex items-center justify-between w-full text-left font-medium text-rawises-800 py-2"
+                    >
+                      Saç Bakımı
+                    </button>
+                    <div className="ml-4 space-y-2">
+                      <button
+                        onClick={() => handleCategoryClick("Saç", "Şampuan")}
+                        className="block text-sm text-rawises-600 hover:text-rawises-800"
+                      >
+                        Şampuan
+                      </button>
+                      <button
+                        onClick={() => handleCategoryClick("Saç", "Fırça")}
+                        className="block text-sm text-rawises-600 hover:text-rawises-800"
+                      >
+                        Saç Fırçaları
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Erkek Bakım */}
+                  <div>
+                    <button
+                      onClick={() => handleCategoryClick("Erkek")}
+                      className="flex items-center justify-between w-full text-left font-medium text-rawises-800 py-2"
+                    >
+                      Erkek Bakım
+                    </button>
+                    <div className="ml-4 space-y-2">
+                      <button
+                        onClick={() => handleCategoryClick("Erkek", "Tıraş")}
+                        className="block text-sm text-rawises-600 hover:text-rawises-800"
+                      >
+                        Tıraş Ürünleri
+                      </button>
+                      <button
+                        onClick={() => handleCategoryClick("Erkek", "Sakal")}
+                        className="block text-sm text-rawises-600 hover:text-rawises-800"
+                      >
+                        Sakal Bakımı
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Mobile Contact Info */}
+                <div className="border-t border-rawises-100 pt-4 space-y-2">
+                  <div className="flex items-center gap-2 text-sm text-rawises-600">
+                    <Phone className="w-4 h-4" />
+                    <span>+90 507 302 73 13</span>
+                  </div>
+                  <Link
+                    href="/musteri-hizmetleri"
+                    className="block text-sm text-rawises-600 hover:text-rawises-800"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    Müşteri Hizmetleri
+                  </Link>
                 </div>
               </div>
-            )}
+            </div>
           </div>
-        </div>
+        )}
       </header>
 
+      {/* Cart Sidebar */}
       <CartSidebar isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
     </>
   )

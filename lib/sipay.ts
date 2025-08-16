@@ -53,7 +53,7 @@ export function calculateTotal(items: CartItem[]): number {
 export function formatUserBasket(items: CartItem[]): string {
   const basketItems = items.map((item) => [
     item.name,
-    (item.price * 100).toString(), // Kuruş cinsinden
+    (item.price * 100).toString(), // Kuruş cinsinden (KDV hariç)
     item.quantity.toString(),
   ])
 
@@ -73,7 +73,7 @@ export function generateSipayToken(orderData: {
   const crypto = require("crypto")
 
   const basketStr = formatUserBasket(orderData.items)
-  const amountInKurus = (orderData.amount * 100).toString()
+  const amountInKurus = (orderData.amount * 100).toString() // KDV hariç tutar
 
   // Token oluşturma string'i
   const tokenString = `${sipayConfig.merchantId}${orderData.orderId}${amountInKurus}${orderData.email}${sipayConfig.merchantKey}`
@@ -94,13 +94,13 @@ export function createSipayPaymentData(orderData: {
   items: CartItem[]
 }): Partial<SipayPaymentRequest> {
   const basketStr = formatUserBasket(orderData.items)
-  const amountInKurus = (orderData.amount * 100).toString()
+  const amountInKurus = (orderData.amount * 100).toString() // KDV hariç tutar kuruş cinsinden
 
   return {
     merchant_id: sipayConfig.merchantId,
     merchant_oid: orderData.orderId,
     email: orderData.email,
-    payment_amount: amountInKurus,
+    payment_amount: amountInKurus, // KDV hariç tutar
     currency: "TL",
     test_mode: "1", // Test modu - canlıda "0" olacak
     non_3d: "0", // 3D Secure aktif

@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Heart, ShoppingCart, Check, Filter, X, Grid3X3, List, Star } from "lucide-react"
+import { Heart, ShoppingCart, Check, Filter, X, Grid3X3, List, Star, Calculator } from "lucide-react"
 import Image from "next/image"
 import { stripHtmlTags, calculateDiscountPercentage, type Product } from "@/lib/csv-parser"
 import { useCartStore } from "@/lib/cart-store"
@@ -212,9 +212,14 @@ export function ProductGrid() {
     )
   }
 
+  // KDV dahil fiyat hesaplama
+  const calculatePriceWithVAT = (price: number) => {
+    return price * 1.2 // %20 KDV ekleme
+  }
+
   if (loading) {
     return (
-      <section className="py-12">
+      <section className="py-6 lg:py-12">
         <div className="container mx-auto px-4">
           <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
             {[...Array(8)].map((_, i) => (
@@ -234,26 +239,26 @@ export function ProductGrid() {
   }
 
   return (
-    <section className="py-12">
+    <section className="py-6 lg:py-12">
       <div className="container mx-auto px-4">
-        <div className="mb-8">
+        <div className="mb-6 lg:mb-8">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h2 className="text-2xl font-bold text-rawises-800">
+              <h2 className="text-xl lg:text-2xl font-bold text-rawises-800">
                 {activeFilter
                   ? `${activeFilter.subcategory || activeFilter.category} Ürünleri`
                   : searchQuery
                     ? `"${searchQuery}" Arama Sonuçları`
                     : "Öne Çıkan Ürünler"}
               </h2>
-              <p className="text-rawises-600">
+              <p className="text-sm lg:text-base text-rawises-600">
                 {activeFilter || searchQuery ? `${filteredProducts.length} ürün bulundu` : "En popüler makyaj ürünleri"}
               </p>
             </div>
 
             <div className="flex items-center gap-2">
-              {/* View Mode Toggle */}
-              <div className="flex items-center border border-rawises-200 rounded-lg p-1">
+              {/* View Mode Toggle - Sadece desktop */}
+              <div className="hidden lg:flex items-center border border-rawises-200 rounded-lg p-1">
                 <Button
                   variant={viewMode === "grid" ? "default" : "ghost"}
                   size="sm"
@@ -284,7 +289,7 @@ export function ProductGrid() {
                   className="flex items-center gap-2 border-rawises-300 text-rawises-700 hover:bg-rawises-50 bg-transparent"
                 >
                   <X className="w-4 h-4" />
-                  Temizle
+                  <span className="hidden sm:inline">Temizle</span>
                 </Button>
               )}
             </div>
@@ -303,11 +308,13 @@ export function ProductGrid() {
         </div>
 
         {/* Grid View */}
-        {viewMode === "grid" && (
+        {(viewMode === "grid" || window.innerWidth < 1024) && (
           <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
             {filteredProducts.map((product) => {
               const isAdded = addedItems.has(product.id)
               const productSlug = createProductSlug(product)
+              const priceWithVAT = calculatePriceWithVAT(product.discountPrice)
+              const salePriceWithVAT = calculatePriceWithVAT(product.salePrice)
 
               return (
                 <Card
@@ -362,13 +369,27 @@ export function ProductGrid() {
                       {stripHtmlTags(product.description).substring(0, 40)}...
                     </p>
 
-                    <div className="flex items-center justify-between mb-2 sm:mb-3">
-                      <div>
-                        <span className="text-xs line-through text-gray-400 block sm:inline">
-                          {product.salePrice} TL
+                    <div className="flex flex-col gap-1 mb-2 sm:mb-3">
+                      {/* KDV Hariç Fiyat */}
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-gray-500">KDV Hariç:</span>
+                        <div className="text-right">
+                          <span className="text-xs line-through text-gray-400">{product.salePrice} TL</span>
+                          <div className="text-sm font-medium text-rawises-600">{product.discountPrice} TL</div>
+                        </div>
+                      </div>
+
+                      {/* KDV Dahil Fiyat */}
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-gray-500 flex items-center gap-1">
+                          <Calculator className="w-3 h-3" />
+                          KDV Dahil:
                         </span>
-                        <div className="text-sm sm:text-base lg:text-lg font-bold bg-gradient-to-r from-rawises-600 to-brand-500 bg-clip-text text-transparent">
-                          {product.discountPrice} TL
+                        <div className="text-right">
+                          <span className="text-xs line-through text-gray-400">{salePriceWithVAT.toFixed(2)} TL</span>
+                          <div className="text-sm sm:text-base lg:text-lg font-bold bg-gradient-to-r from-rawises-600 to-brand-500 bg-clip-text text-transparent">
+                            {priceWithVAT.toFixed(2)} TL
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -405,12 +426,14 @@ export function ProductGrid() {
           </div>
         )}
 
-        {/* List View */}
-        {viewMode === "list" && (
+        {/* List View - Sadece desktop */}
+        {viewMode === "list" && window.innerWidth >= 1024 && (
           <div className="space-y-4">
             {filteredProducts.map((product) => {
               const isAdded = addedItems.has(product.id)
               const productSlug = createProductSlug(product)
+              const priceWithVAT = calculatePriceWithVAT(product.discountPrice)
+              const salePriceWithVAT = calculatePriceWithVAT(product.salePrice)
 
               return (
                 <Card
@@ -461,11 +484,22 @@ export function ProductGrid() {
                         </div>
 
                         <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-4">
+                          <div className="flex items-center gap-6">
                             <div>
+                              <div className="text-xs text-gray-500 mb-1">KDV Hariç:</div>
                               <span className="text-sm line-through text-gray-400 block">{product.salePrice} TL</span>
+                              <div className="text-base font-medium text-rawises-600">{product.discountPrice} TL</div>
+                            </div>
+                            <div>
+                              <div className="text-xs text-gray-500 mb-1 flex items-center gap-1">
+                                <Calculator className="w-3 h-3" />
+                                KDV Dahil:
+                              </div>
+                              <span className="text-sm line-through text-gray-400 block">
+                                {salePriceWithVAT.toFixed(2)} TL
+                              </span>
                               <div className="text-lg font-bold bg-gradient-to-r from-rawises-600 to-brand-500 bg-clip-text text-transparent">
-                                {product.discountPrice} TL
+                                {priceWithVAT.toFixed(2)} TL
                               </div>
                             </div>
                             <div className="flex items-center gap-1">
@@ -536,6 +570,13 @@ export function ProductGrid() {
             </Button>
           </div>
         )}
+
+        {/* KDV Bilgi Notu */}
+        <div className="mt-8 text-center">
+          <p className="text-xs text-gray-500">
+            * Tüm fiyatlara %20 KDV dahildir. Sepette KDV detayını görebilirsiniz.
+          </p>
+        </div>
       </div>
     </section>
   )
