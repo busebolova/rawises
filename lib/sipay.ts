@@ -1,3 +1,5 @@
+import crypto from "crypto" // Added ES6 import for crypto module
+
 export interface SipayConfig {
   merchantId: string
   merchantKey: string
@@ -69,9 +71,6 @@ export function generateSipayToken(orderData: {
   userPhone: string
   items: CartItem[]
 }): string {
-  // Bu fonksiyon sunucu tarafında çalışır
-  const crypto = require("crypto")
-
   const basketStr = formatUserBasket(orderData.items)
   const amountInKurus = (orderData.amount * 100).toString() // KDV hariç tutar
 
@@ -115,6 +114,71 @@ export function createSipayPaymentData(orderData: {
   }
 }
 
+export async function createPayment(orderData: {
+  orderId: string
+  amount: number
+  customerName: string
+  customerEmail: string
+  customerPhone: string
+  productName: string
+  productDescription: string
+}): Promise<{
+  status: string
+  payment_url?: string
+  error_message?: string
+}> {
+  try {
+    // Convert cart items format for Sipay
+    const cartItems: CartItem[] = [
+      {
+        name: orderData.productName,
+        price: orderData.amount,
+        quantity: 1,
+      },
+    ]
+
+    // Prepare order data for API
+    const apiPayload = {
+      orderId: orderData.orderId,
+      email: orderData.customerEmail,
+      amount: orderData.amount,
+      userName: orderData.customerName,
+      userAddress: orderData.customerPhone, // Using phone as address for now
+      userPhone: orderData.customerPhone,
+      items: cartItems,
+    }
+
+    // Make API call to create payment (token generation happens server-side)
+    const response = await fetch("/api/payment/create", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(apiPayload),
+    })
+
+    const result = await response.json()
+
+    if (response.ok && result.status === "success") {
+      return {
+        status: "success",
+        payment_url: result.payment_url,
+      }
+    } else {
+      return {
+        status: "error",
+        error_message: result.error_message || "Ödeme oluşturulamadı",
+      }
+    }
+  } catch (error) {
+    console.error("Sipay createPayment error:", error)
+    return {
+      status: "error",
+      error_message: "Ödeme işlemi sırasında bir hata oluştu",
+    }
+  }
+}
+
 export const sipayService = {
   config: sipayConfig,
   generateOrderId,
@@ -122,4 +186,5 @@ export const sipayService = {
   formatUserBasket,
   generateSipayToken,
   createSipayPaymentData,
+  createPayment, // Added createPayment method to service
 }

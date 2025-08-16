@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useCartStore } from "@/lib/cart-store"
-import { sipayService } from "@/lib/sipay"
+import { sipayService } from "@/lib/sipay-client"
 
 interface CheckoutModalProps {
   isOpen: boolean
