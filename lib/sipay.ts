@@ -34,7 +34,7 @@ export interface CartItem {
 
 export const sipayConfig: SipayConfig = {
   merchantId: process.env.SIPAY_MERCHANT_ID || "13174794",
-  merchantKey: process.env.SIPAY_MERCHANT_SALT || "$2y$10$RwIRCb8UmjFrv6LR3kdJ0ePwxNPkKFQi1hC7xzHOm07w18lWIOPtO",
+  merchantKey: process.env.SIPAY_MERCHANT_KEY || "$2y$10$RwIRCb8UmjFrv6LR3kdJ0ePwxNPkKFQi1hC7xzHOm07w18lWIOPtO",
   appId: process.env.SIPAY_APP_KEY || "11ac0243ff9c07f67704f9ec8880d002",
   appSecret: process.env.SIPAY_APP_SECRET || "ecd2a1cd72e98bec991e4d92e71bcb67",
   baseUrl: process.env.SIPAY_BASE_URL || "https://app.sipay.com.tr/ccpayment",
