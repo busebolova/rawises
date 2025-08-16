@@ -4,7 +4,6 @@ import crypto from "crypto"
 function generateSipayHash(data: any): string {
   const merchantKey = process.env.SIPAY_MERCHANT_KEY!
 
-  // Sipay hash format: merchant_id + merchant_oid + payment_amount + currency + merchant_key
   const hashString = `${data.merchant_id}${data.merchant_oid}${data.payment_amount}${data.currency}${merchantKey}`
 
   console.log("[v0] Sipay hash string:", hashString)
@@ -49,8 +48,8 @@ export async function POST(request: NextRequest) {
     if (!orderId || !email || !amount || !userName || !userPhone || !items) {
       return NextResponse.json(
         {
-          success: false,
-          error: "Eksik ödeme bilgileri",
+          status: "error",
+          error_message: "Eksik ödeme bilgileri",
         },
         { status: 400 },
       )
@@ -59,7 +58,7 @@ export async function POST(request: NextRequest) {
     const sipayPaymentData = {
       merchant_id: process.env.SIPAY_MERCHANT_ID,
       merchant_oid: orderId,
-      payment_amount: (amount * 100).toString(), // Amount in kuruş
+      payment_amount: Math.round(amount * 100).toString(), // Amount in kuruş
       currency: "TL",
       user_name: userName,
       user_address: userAddress || userName,
@@ -67,7 +66,9 @@ export async function POST(request: NextRequest) {
       email: email,
       merchant_ok_url: `${baseUrl}/payment/success`,
       merchant_fail_url: `${baseUrl}/payment/failed`,
-      user_basket: JSON.stringify(items.map((item: any) => [item.name, (item.price * 100).toString(), item.quantity])),
+      user_basket: JSON.stringify(
+        items.map((item: any) => [item.name, Math.round((item.price || amount) * 100).toString(), item.quantity || 1]),
+      ),
       debug_on: "0",
       test_mode: "0",
       non_3d: "0",
@@ -75,7 +76,7 @@ export async function POST(request: NextRequest) {
     }
 
     const sipayHash = generateSipayHash(sipayPaymentData)
-    sipayPaymentData.sipay_token = sipayHash
+    sipayPaymentData.hash = sipayHash
 
     console.log("[v0] Generated Sipay hash:", sipayHash)
     console.log("[v0] Sending payment data to Sipay:", sipayPaymentData)
@@ -85,7 +86,7 @@ export async function POST(request: NextRequest) {
       formData.append(key, value as string)
     })
 
-    const sipayUrl = process.env.SIPAY_BASE_URL // Use base URL directly
+    const sipayUrl = `${process.env.SIPAY_BASE_URL}/api/paySmart2D`
     console.log("[v0] Sipay URL:", sipayUrl)
 
     const sipayResponse = await fetch(sipayUrl, {
@@ -101,17 +102,29 @@ export async function POST(request: NextRequest) {
     const responseText = await sipayResponse.text()
     console.log("[v0] Sipay response:", responseText.substring(0, 500))
 
-    if (responseText.includes("SUCCESS:")) {
-      const token = responseText.split("SUCCESS:")[1]?.trim()
-      if (token) {
-        const paymentUrl = `https://www.sipay.com.tr/odeme/guvenli/${token}`
+    try {
+      // Try to parse as JSON first (modern Sipay API)
+      const jsonResponse = JSON.parse(responseText)
+      console.log("[v0] Sipay JSON response:", jsonResponse)
+
+      if (jsonResponse.status === "success" && jsonResponse.payment_url) {
         return NextResponse.json({
           status: "success",
-          payment_url: paymentUrl,
+          payment_url: jsonResponse.payment_url,
           orderId: orderId,
           message: "Ödeme sayfasına yönlendiriliyorsunuz...",
         })
+      } else if (jsonResponse.status === "error") {
+        return NextResponse.json(
+          {
+            status: "error",
+            error_message: jsonResponse.message || "Sipay ödeme hatası",
+          },
+          { status: 400 },
+        )
       }
+    } catch (parseError) {
+      console.log("[v0] Response is not JSON, parsing as HTML/text")
     }
 
     const urlPatterns = [
@@ -119,11 +132,13 @@ export async function POST(request: NextRequest) {
       /window\.location\.href\s*=\s*["']([^"']+)["']/i,
       /location\.href\s*=\s*["']([^"']+)["']/i,
       /https?:\/\/[^\s"'<>]*sipay[^\s"'<>]*/i,
+      /https?:\/\/[^\s"'<>]*app\.sipay\.com\.tr[^\s"'<>]*/i,
     ]
 
     for (const pattern of urlPatterns) {
       const match = responseText.match(pattern)
       if (match && match[1]) {
+        console.log("[v0] Found payment URL:", match[1])
         return NextResponse.json({
           status: "success",
           payment_url: match[1],
@@ -133,14 +148,22 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    if (responseText.includes("FAILED") || responseText.includes("ERROR")) {
-      const errorMatch = responseText.match(/(?:FAILED|ERROR):\s*([^<\n]+)/i)
-      const errorMessage = errorMatch ? errorMatch[1].trim() : "Bilinmeyen hata"
+    if (responseText.includes("FAILED") || responseText.includes("ERROR") || responseText.includes("error")) {
+      const errorPatterns = [/(?:FAILED|ERROR):\s*([^<\n]+)/i, /"message":\s*"([^"]+)"/i, /"error":\s*"([^"]+)"/i]
+
+      let errorMessage = "Bilinmeyen hata"
+      for (const pattern of errorPatterns) {
+        const match = responseText.match(pattern)
+        if (match && match[1]) {
+          errorMessage = match[1].trim()
+          break
+        }
+      }
 
       return NextResponse.json(
         {
           status: "error",
-          error_message: "Ödeme işlemi başlatılamadı: " + errorMessage,
+          error_message: errorMessage,
         },
         { status: 400 },
       )
@@ -149,17 +172,17 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         status: "error",
-        error_message: "Sipay'dan beklenmeyen yanıt alındı. Lütfen tekrar deneyin.",
+        error_message: "Sipay entegrasyonu şu anda kullanılamıyor. Lütfen daha sonra tekrar deneyin.",
         debug_info: responseText.substring(0, 200),
       },
       { status: 400 },
     )
   } catch (error) {
-    console.error("Payment creation error:", error)
+    console.error("[v0] Payment creation error:", error)
     return NextResponse.json(
       {
         status: "error",
-        error_message: "Sunucu hatası oluştu: " + error.message,
+        error_message: `Sunucu hatası: ${error instanceof Error ? error.message : "Bilinmeyen hata"}`,
       },
       { status: 500 },
     )
