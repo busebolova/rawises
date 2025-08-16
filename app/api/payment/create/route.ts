@@ -140,14 +140,19 @@ export async function POST(request: NextRequest) {
     console.log("[v0] Sipay response status:", sipayResponse.status)
 
     if (sipayResponse.ok) {
-      // Sipay returns HTML with redirect or error message
-      if (sipayResult.includes("window.location.href") || sipayResult.includes("form")) {
-        // Extract payment URL from HTML response
-        const urlMatch =
-          sipayResult.match(/window\.location\.href\s*=\s*["']([^"']+)["']/) ||
-          sipayResult.match(/action\s*=\s*["']([^"']+)["']/)
+      // Check for direct payment URL redirects
+      const urlPatterns = [
+        /window\.location\.href\s*=\s*["']([^"']+)["']/,
+        /action\s*=\s*["']([^"']+)["']/,
+        /location\.replace\s*$$\s*["']([^"']+)["']\s*$$/,
+        /href\s*=\s*["']([^"']+)["'][^>]*>.*(?:ödeme|payment|pay)/i,
+        /<meta[^>]*http-equiv\s*=\s*["']refresh["'][^>]*content\s*=\s*["'][^;]*;\s*url\s*=\s*([^"']+)["']/i,
+      ]
 
+      for (const pattern of urlPatterns) {
+        const urlMatch = sipayResult.match(pattern)
         if (urlMatch && urlMatch[1]) {
+          console.log("[v0] Found payment URL:", urlMatch[1])
           return NextResponse.json({
             status: "success",
             payment_url: urlMatch[1],
@@ -157,27 +162,77 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // Check for error messages in HTML
-      if (sipayResult.includes("HATA") || sipayResult.includes("ERROR") || sipayResult.includes("Unauthenticated")) {
-        const errorMatch =
-          sipayResult.match(/<[^>]*>([^<]*(?:HATA|ERROR|Unauthenticated)[^<]*)<\/[^>]*>/) ||
-          sipayResult.match(/(?:HATA|ERROR|Unauthenticated)[^<\n]*/)
+      // Check if response contains a payment form that needs to be submitted
+      if (sipayResult.includes("<form") && (sipayResult.includes("submit") || sipayResult.includes("payment"))) {
+        // Extract form action URL
+        const formMatch = sipayResult.match(/<form[^>]*action\s*=\s*["']([^"']+)["']/i)
+        if (formMatch && formMatch[1]) {
+          console.log("[v0] Found form action URL:", formMatch[1])
+          return NextResponse.json({
+            status: "success",
+            payment_url: formMatch[1],
+            orderId: orderId,
+            message: "Ödeme sayfasına yönlendiriliyorsunuz...",
+          })
+        }
+      }
 
-        return NextResponse.json(
-          {
-            status: "error",
-            error_message:
-              "Ödeme işlemi başlatılamadı: " + (errorMatch ? errorMatch[1] || errorMatch[0] : "Bilinmeyen hata"),
-          },
-          { status: 400 },
+      // Enhanced error detection
+      const errorPatterns = [
+        /HATA[:\s]*([^<\n]+)/i,
+        /ERROR[:\s]*([^<\n]+)/i,
+        /Unauthenticated/i,
+        /Authentication\s+failed/i,
+        /Invalid\s+request/i,
+        /Geçersiz\s+istek/i,
+        /Yetkisiz\s+erişim/i,
+      ]
+
+      for (const pattern of errorPatterns) {
+        const errorMatch = sipayResult.match(pattern)
+        if (errorMatch) {
+          console.log("[v0] Found error in response:", errorMatch[0])
+          return NextResponse.json(
+            {
+              status: "error",
+              error_message: "Ödeme işlemi başlatılamadı: " + (errorMatch[1] || errorMatch[0]),
+            },
+            { status: 400 },
+          )
+        }
+      }
+
+      // If HTML contains DOCTYPE but no clear payment URL or error, it might be a complete page
+      if (sipayResult.includes("<!DOCTYPE") || sipayResult.includes("<html")) {
+        console.log("[v0] Received complete HTML page from Sipay")
+
+        // Try to find any URLs in script tags or data attributes
+        const scriptUrlMatch = sipayResult.match(
+          /(?:src|href|url)\s*[:=]\s*["']([^"']*(?:sipay|payment|pay)[^"']*)["']/i,
         )
+        if (scriptUrlMatch && scriptUrlMatch[1]) {
+          console.log("[v0] Found URL in scripts:", scriptUrlMatch[1])
+          return NextResponse.json({
+            status: "success",
+            payment_url: scriptUrlMatch[1],
+            orderId: orderId,
+            message: "Ödeme sayfasına yönlendiriliyorsunuz...",
+          })
+        }
       }
     }
+
+    const htmlPreview = sipayResult
+      .replace(/<[^>]*>/g, " ")
+      .substring(0, 300)
+      .trim()
+    console.log("[v0] HTML content preview:", htmlPreview)
 
     return NextResponse.json(
       {
         status: "error",
-        error_message: "Sipay'dan geçersiz yanıt alındı: " + sipayResult.substring(0, 200),
+        error_message: "Sipay'dan geçersiz yanıt alındı. Lütfen ödeme bilgilerinizi kontrol edin.",
+        debug_info: htmlPreview,
       },
       { status: 400 },
     )
