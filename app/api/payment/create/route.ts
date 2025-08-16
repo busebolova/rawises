@@ -76,104 +76,113 @@ export async function POST(request: NextRequest) {
     }
 
     const sipayHash = generateSipayHash(sipayPaymentData)
-    sipayPaymentData.hash = sipayHash
+    const finalPaymentData = {
+      ...sipayPaymentData,
+      paytr_token: sipayHash, // Use PayTR compatible field name
+    }
 
     console.log("[v0] Generated Sipay hash:", sipayHash)
-    console.log("[v0] Sending payment data to Sipay:", sipayPaymentData)
+    console.log("[v0] Sending payment data to Sipay:", finalPaymentData)
 
     const formData = new URLSearchParams()
-    Object.entries(sipayPaymentData).forEach(([key, value]) => {
+    Object.entries(finalPaymentData).forEach(([key, value]) => {
       formData.append(key, value as string)
     })
 
-    const sipayUrl = `${process.env.SIPAY_BASE_URL}/api/paySmart2D`
-    console.log("[v0] Sipay URL:", sipayUrl)
-
-    const sipayResponse = await fetch(sipayUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      body: formData.toString(),
-    })
-
-    console.log("[v0] Sipay response status:", sipayResponse.status)
-
-    const responseText = await sipayResponse.text()
-    console.log("[v0] Sipay response:", responseText.substring(0, 500))
-
-    try {
-      // Try to parse as JSON first (modern Sipay API)
-      const jsonResponse = JSON.parse(responseText)
-      console.log("[v0] Sipay JSON response:", jsonResponse)
-
-      if (jsonResponse.status === "success" && jsonResponse.payment_url) {
-        return NextResponse.json({
-          status: "success",
-          payment_url: jsonResponse.payment_url,
-          orderId: orderId,
-          message: "Ödeme sayfasına yönlendiriliyorsunuz...",
-        })
-      } else if (jsonResponse.status === "error") {
-        return NextResponse.json(
-          {
-            status: "error",
-            error_message: jsonResponse.message || "Sipay ödeme hatası",
-          },
-          { status: 400 },
-        )
-      }
-    } catch (parseError) {
-      console.log("[v0] Response is not JSON, parsing as HTML/text")
-    }
-
-    const urlPatterns = [
-      /action="([^"]+)"/i,
-      /window\.location\.href\s*=\s*["']([^"']+)["']/i,
-      /location\.href\s*=\s*["']([^"']+)["']/i,
-      /https?:\/\/[^\s"'<>]*sipay[^\s"'<>]*/i,
-      /https?:\/\/[^\s"'<>]*app\.sipay\.com\.tr[^\s"'<>]*/i,
+    const sipayEndpoints = [
+      `${process.env.SIPAY_BASE_URL}`,
+      `${process.env.SIPAY_BASE_URL}/api/paySmart2D`,
+      `${process.env.SIPAY_BASE_URL}/ccpayment`,
     ]
 
-    for (const pattern of urlPatterns) {
-      const match = responseText.match(pattern)
-      if (match && match[1]) {
-        console.log("[v0] Found payment URL:", match[1])
-        return NextResponse.json({
-          status: "success",
-          payment_url: match[1],
-          orderId: orderId,
-          message: "Ödeme sayfasına yönlendiriliyorsunuz...",
+    let lastError = null
+
+    for (const endpoint of sipayEndpoints) {
+      try {
+        console.log("[v0] Trying Sipay endpoint:", endpoint)
+
+        const sipayResponse = await fetch(endpoint, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+          },
+          body: formData.toString(),
         })
-      }
-    }
 
-    if (responseText.includes("FAILED") || responseText.includes("ERROR") || responseText.includes("error")) {
-      const errorPatterns = [/(?:FAILED|ERROR):\s*([^<\n]+)/i, /"message":\s*"([^"]+)"/i, /"error":\s*"([^"]+)"/i]
+        console.log("[v0] Sipay response status:", sipayResponse.status)
 
-      let errorMessage = "Bilinmeyen hata"
-      for (const pattern of errorPatterns) {
-        const match = responseText.match(pattern)
-        if (match && match[1]) {
-          errorMessage = match[1].trim()
-          break
+        const responseText = await sipayResponse.text()
+        console.log("[v0] Sipay response:", responseText.substring(0, 500))
+
+        if (responseText.includes("SUCCESS:")) {
+          const token = responseText.split("SUCCESS:")[1]?.trim()
+          if (token) {
+            const paymentUrl = `https://www.paytr.com/odeme/guvenli/${token}`
+            console.log("[v0] Payment URL created:", paymentUrl)
+            return NextResponse.json({
+              status: "success",
+              payment_url: paymentUrl,
+              orderId: orderId,
+              message: "Ödeme sayfasına yönlendiriliyorsunuz...",
+            })
+          }
         }
-      }
 
-      return NextResponse.json(
-        {
-          status: "error",
-          error_message: errorMessage,
-        },
-        { status: 400 },
-      )
+        // Try JSON parsing
+        try {
+          const jsonResponse = JSON.parse(responseText)
+          console.log("[v0] Sipay JSON response:", jsonResponse)
+
+          if (jsonResponse.status === "success" && jsonResponse.payment_url) {
+            return NextResponse.json({
+              status: "success",
+              payment_url: jsonResponse.payment_url,
+              orderId: orderId,
+              message: "Ödeme sayfasına yönlendiriliyorsunuz...",
+            })
+          }
+        } catch (parseError) {
+          console.log("[v0] Response is not JSON, trying HTML parsing")
+        }
+
+        // Try HTML parsing for payment URLs
+        const urlPatterns = [
+          /action="([^"]+)"/i,
+          /window\.location\.href\s*=\s*["']([^"']+)["']/i,
+          /location\.href\s*=\s*["']([^"']+)["']/i,
+          /https?:\/\/[^\s"'<>]*sipay[^\s"'<>]*/i,
+        ]
+
+        for (const pattern of urlPatterns) {
+          const match = responseText.match(pattern)
+          if (match && match[1]) {
+            console.log("[v0] Found payment URL:", match[1])
+            return NextResponse.json({
+              status: "success",
+              payment_url: match[1],
+              orderId: orderId,
+              message: "Ödeme sayfasına yönlendiriliyorsunuz...",
+            })
+          }
+        }
+
+        // Check for errors
+        if (responseText.includes("FAILED") || responseText.includes("ERROR")) {
+          lastError = responseText
+          continue // Try next endpoint
+        }
+      } catch (fetchError) {
+        console.error("[v0] Fetch error for endpoint", endpoint, ":", fetchError)
+        lastError = fetchError
+        continue // Try next endpoint
+      }
     }
 
     return NextResponse.json(
       {
         status: "error",
-        error_message: "Sipay entegrasyonu şu anda kullanılamıyor. Lütfen daha sonra tekrar deneyin.",
-        debug_info: responseText.substring(0, 200),
+        error_message: "Sipay ödeme sistemi şu anda erişilemez durumda. Lütfen daha sonra tekrar deneyin.",
+        debug_info: lastError ? String(lastError).substring(0, 200) : "Tüm endpoint'ler başarısız",
       },
       { status: 400 },
     )
@@ -182,7 +191,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         status: "error",
-        error_message: `Sunucu hatası: ${error instanceof Error ? error.message : "Bilinmeyen hata"}`,
+        error_message: `Ödeme işlemi başlatılamadı: ${error instanceof Error ? error.message : "Bilinmeyen hata"}`,
       },
       { status: 500 },
     )
