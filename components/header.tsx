@@ -240,253 +240,279 @@ export function Header() {
         {/* Desktop Navigation */}
         <div className="hidden lg:block border-t border-rawises-100">
           <div className="container mx-auto px-4">
-            <NavigationMenu className="max-w-none">
-              <NavigationMenuList className="flex-wrap justify-start gap-0">
-                {/* Anne & Bebek */}
-                <NavigationMenuItem>
-                  <NavigationMenuTrigger
-                    onClick={() => handleCategoryClick("Anne & Bebek")}
-                    className="bg-transparent hover:bg-rawises-50 data-[state=open]:bg-rawises-50"
-                  >
-                    Anne & Bebek
-                  </NavigationMenuTrigger>
-                  <NavigationMenuContent>
-                    <div className="w-48 p-2">
-                      <button
-                        onClick={() => handleCategoryClick("Anne & Bebek", "Bebek Bakım")}
-                        className="block w-full text-left px-3 py-2 text-sm hover:bg-rawises-50 rounded-md transition-colors"
-                      >
-                        Bebek Bakım
-                      </button>
-                      <button
-                        onClick={() => handleCategoryClick("Anne & Bebek", "Emzik & Biberon")}
-                        className="block w-full text-left px-3 py-2 text-sm hover:bg-rawises-50 rounded-md transition-colors"
-                      >
-                        Emzik & Biberon
-                      </button>
-                    </div>
-                  </NavigationMenuContent>
-                </NavigationMenuItem>
+            <div className="relative">
+              <NavigationMenu className="max-w-none">
+                <NavigationMenuList className="flex-nowrap justify-start gap-0 overflow-x-auto">
+                  {/* Anne & Bebek */}
+                  <NavigationMenuItem>
+                    <NavigationMenuTrigger className="bg-transparent hover:bg-rawises-50 data-[state=open]:bg-rawises-50 whitespace-nowrap text-sm px-3">
+                      Anne & Bebek
+                    </NavigationMenuTrigger>
+                    <NavigationMenuContent>
+                      <div className="w-56 p-3 bg-white">
+                        <button
+                          onClick={() => handleCategoryClick("Anne & Bebek", "Bebek Bakım")}
+                          className="block w-full text-left px-3 py-2.5 text-sm hover:bg-rawises-50 rounded-md transition-colors duration-200 focus:bg-rawises-100 focus:outline-none"
+                        >
+                          Bebek Bakım
+                        </button>
+                        <button
+                          onClick={() => handleCategoryClick("Anne & Bebek", "Emzik & Biberon")}
+                          className="block w-full text-left px-3 py-2.5 text-sm hover:bg-rawises-50 rounded-md transition-colors duration-200 focus:bg-rawises-100 focus:outline-none"
+                        >
+                          Emzik & Biberon
+                        </button>
+                        <button
+                          onClick={() => handleCategoryClick("Anne & Bebek")}
+                          className="block w-full text-left px-3 py-2.5 text-sm hover:bg-rawises-50 rounded-md transition-colors duration-200 focus:bg-rawises-100 focus:outline-none font-medium border-t border-rawises-100 mt-2 pt-2"
+                        >
+                          Tüm Anne & Bebek
+                        </button>
+                      </div>
+                    </NavigationMenuContent>
+                  </NavigationMenuItem>
 
-                {/* Ağız Bakım */}
-                <NavigationMenuItem>
-                  <NavigationMenuTrigger
-                    onClick={() => handleCategoryClick("Ağız Bakım")}
-                    className="bg-transparent hover:bg-rawises-50 data-[state=open]:bg-rawises-50"
-                  >
-                    Ağız Bakım
-                  </NavigationMenuTrigger>
-                  <NavigationMenuContent>
-                    <div className="w-48 p-2">
-                      <button
-                        onClick={() => handleCategoryClick("Ağız Bakım", "Diş Fırçası")}
-                        className="block w-full text-left px-3 py-2 text-sm hover:bg-rawises-50 rounded-md transition-colors"
-                      >
-                        Diş Fırçaları
-                      </button>
-                      <button
-                        onClick={() => handleCategoryClick("Ağız Bakım", "Diş Macunu")}
-                        className="block w-full text-left px-3 py-2 text-sm hover:bg-rawises-50 rounded-md transition-colors"
-                      >
-                        Diş Macunları
-                      </button>
-                      <button
-                        onClick={() => handleCategoryClick("Ağız Bakım", "Ağız Suyu")}
-                        className="block w-full text-left px-3 py-2 text-sm hover:bg-rawises-50 rounded-md transition-colors"
-                      >
-                        Ağız Suları
-                      </button>
-                    </div>
-                  </NavigationMenuContent>
-                </NavigationMenuItem>
+                  {/* Ağız Bakım */}
+                  <NavigationMenuItem>
+                    <NavigationMenuTrigger className="bg-transparent hover:bg-rawises-50 data-[state=open]:bg-rawises-50 whitespace-nowrap text-sm px-3">
+                      Ağız Bakım
+                    </NavigationMenuTrigger>
+                    <NavigationMenuContent>
+                      <div className="w-56 p-3 bg-white">
+                        <button
+                          onClick={() => handleCategoryClick("Ağız Bakım", "Diş Fırçası")}
+                          className="block w-full text-left px-3 py-2.5 text-sm hover:bg-rawises-50 rounded-md transition-colors duration-200 focus:bg-rawises-100 focus:outline-none"
+                        >
+                          Diş Fırçaları
+                        </button>
+                        <button
+                          onClick={() => handleCategoryClick("Ağız Bakım", "Diş Macunu")}
+                          className="block w-full text-left px-3 py-2.5 text-sm hover:bg-rawises-50 rounded-md transition-colors duration-200 focus:bg-rawises-100 focus:outline-none"
+                        >
+                          Diş Macunları
+                        </button>
+                        <button
+                          onClick={() => handleCategoryClick("Ağız Bakım", "Ağız Suyu")}
+                          className="block w-full text-left px-3 py-2.5 text-sm hover:bg-rawises-50 rounded-md transition-colors duration-200 focus:bg-rawises-100 focus:outline-none"
+                        >
+                          Ağız Suları
+                        </button>
+                        <button
+                          onClick={() => handleCategoryClick("Ağız Bakım")}
+                          className="block w-full text-left px-3 py-2.5 text-sm hover:bg-rawises-50 rounded-md transition-colors duration-200 focus:bg-rawises-100 focus:outline-none font-medium border-t border-rawises-100 mt-2 pt-2"
+                        >
+                          Tüm Ağız Bakım
+                        </button>
+                      </div>
+                    </NavigationMenuContent>
+                  </NavigationMenuItem>
 
-                {/* Cilt Bakımı */}
-                <NavigationMenuItem>
-                  <NavigationMenuTrigger
-                    onClick={() => handleCategoryClick("Cilt Bakımı")}
-                    className="bg-transparent hover:bg-rawises-50 data-[state=open]:bg-rawises-50"
-                  >
-                    Cilt Bakımı
-                  </NavigationMenuTrigger>
-                  <NavigationMenuContent>
-                    <div className="w-48 p-2">
-                      <button
-                        onClick={() => handleCategoryClick("Cilt Bakımı", "Yüz Bakımı")}
-                        className="block w-full text-left px-3 py-2 text-sm hover:bg-rawises-50 rounded-md transition-colors"
-                      >
-                        Yüz Bakımı
-                      </button>
-                      <button
-                        onClick={() => handleCategoryClick("Cilt Bakımı", "Vücut Bakımı")}
-                        className="block w-full text-left px-3 py-2 text-sm hover:bg-rawises-50 rounded-md transition-colors"
-                      >
-                        Vücut Bakımı
-                      </button>
-                      <button
-                        onClick={() => handleCategoryClick("Cilt Bakımı", "Güneş")}
-                        className="block w-full text-left px-3 py-2 text-sm hover:bg-rawises-50 rounded-md transition-colors"
-                      >
-                        Güneş Ürünleri
-                      </button>
-                    </div>
-                  </NavigationMenuContent>
-                </NavigationMenuItem>
+                  {/* Cilt Bakımı */}
+                  <NavigationMenuItem>
+                    <NavigationMenuTrigger className="bg-transparent hover:bg-rawises-50 data-[state=open]:bg-rawises-50 whitespace-nowrap text-sm px-3">
+                      Cilt Bakımı
+                    </NavigationMenuTrigger>
+                    <NavigationMenuContent>
+                      <div className="w-48 p-2">
+                        <button
+                          onClick={() => handleCategoryClick("Cilt Bakımı", "Yüz Bakımı")}
+                          className="block w-full text-left px-3 py-2 text-sm hover:bg-rawises-50 rounded-md transition-colors"
+                        >
+                          Yüz Bakımı
+                        </button>
+                        <button
+                          onClick={() => handleCategoryClick("Cilt Bakımı", "Vücut Bakımı")}
+                          className="block w-full text-left px-3 py-2 text-sm hover:bg-rawises-50 rounded-md transition-colors"
+                        >
+                          Vücut Bakımı
+                        </button>
+                        <button
+                          onClick={() => handleCategoryClick("Cilt Bakımı", "Güneş")}
+                          className="block w-full text-left px-3 py-2 text-sm hover:bg-rawises-50 rounded-md transition-colors"
+                        >
+                          Güneş Ürünleri
+                        </button>
+                        <button
+                          onClick={() => handleCategoryClick("Cilt Bakımı")}
+                          className="block w-full text-left px-3 py-2 text-sm hover:bg-rawises-50 rounded-md transition-colors font-medium border-t border-rawises-100 mt-2 pt-2"
+                        >
+                          Tüm Cilt Bakımı
+                        </button>
+                      </div>
+                    </NavigationMenuContent>
+                  </NavigationMenuItem>
 
-                {/* Kişisel Bakım */}
-                <NavigationMenuItem>
-                  <NavigationMenuTrigger
-                    onClick={() => handleCategoryClick("Kişisel Bakım")}
-                    className="bg-transparent hover:bg-rawises-50 data-[state=open]:bg-rawises-50"
-                  >
-                    Kişisel Bakım
-                  </NavigationMenuTrigger>
-                  <NavigationMenuContent>
-                    <div className="w-48 p-2">
-                      <button
-                        onClick={() => handleCategoryClick("Kişisel Bakım", "Tırnak")}
-                        className="block w-full text-left px-3 py-2 text-sm hover:bg-rawises-50 rounded-md transition-colors"
-                      >
-                        Tırnak Bakımı
-                      </button>
-                      <button
-                        onClick={() => handleCategoryClick("Kişisel Bakım", "Banyo")}
-                        className="block w-full text-left px-3 py-2 text-sm hover:bg-rawises-50 rounded-md transition-colors"
-                      >
-                        Banyo & Vücut
-                      </button>
-                    </div>
-                  </NavigationMenuContent>
-                </NavigationMenuItem>
+                  {/* Kişisel Bakım */}
+                  <NavigationMenuItem>
+                    <NavigationMenuTrigger className="bg-transparent hover:bg-rawises-50 data-[state=open]:bg-rawises-50 whitespace-nowrap text-sm px-3">
+                      Kişisel Bakım
+                    </NavigationMenuTrigger>
+                    <NavigationMenuContent>
+                      <div className="w-48 p-2">
+                        <button
+                          onClick={() => handleCategoryClick("Kişisel Bakım", "Tırnak")}
+                          className="block w-full text-left px-3 py-2 text-sm hover:bg-rawises-50 rounded-md transition-colors"
+                        >
+                          Tırnak Bakımı
+                        </button>
+                        <button
+                          onClick={() => handleCategoryClick("Kişisel Bakım", "Banyo")}
+                          className="block w-full text-left px-3 py-2 text-sm hover:bg-rawises-50 rounded-md transition-colors"
+                        >
+                          Banyo & Vücut
+                        </button>
+                        <button
+                          onClick={() => handleCategoryClick("Kişisel Bakım")}
+                          className="block w-full text-left px-3 py-2 text-sm hover:bg-rawises-50 rounded-md transition-colors font-medium border-t border-rawises-100 mt-2 pt-2"
+                        >
+                          Tüm Kişisel Bakım
+                        </button>
+                      </div>
+                    </NavigationMenuContent>
+                  </NavigationMenuItem>
 
-                {/* Parfüm & Deodorant */}
-                <NavigationMenuItem>
-                  <NavigationMenuTrigger
-                    onClick={() => handleCategoryClick("Parfüm")}
-                    className="bg-transparent hover:bg-rawises-50 data-[state=open]:bg-rawises-50"
-                  >
-                    Parfüm & Deodorant
-                  </NavigationMenuTrigger>
-                  <NavigationMenuContent>
-                    <div className="w-48 p-2">
-                      <button
-                        onClick={() => handleCategoryClick("Parfüm", "Kadın Deodorant")}
-                        className="block w-full text-left px-3 py-2 text-sm hover:bg-rawises-50 rounded-md transition-colors"
-                      >
-                        Kadın Deodorant
-                      </button>
-                      <button
-                        onClick={() => handleCategoryClick("Parfüm", "Erkek Deodorant")}
-                        className="block w-full text-left px-3 py-2 text-sm hover:bg-rawises-50 rounded-md transition-colors"
-                      >
-                        Erkek Deodorant
-                      </button>
-                      <button
-                        onClick={() => handleCategoryClick("Parfüm", "Parfüm")}
-                        className="block w-full text-left px-3 py-2 text-sm hover:bg-rawises-50 rounded-md transition-colors"
-                      >
-                        Parfüm
-                      </button>
-                    </div>
-                  </NavigationMenuContent>
-                </NavigationMenuItem>
+                  {/* Parfüm & Deodorant */}
+                  <NavigationMenuItem>
+                    <NavigationMenuTrigger className="bg-transparent hover:bg-rawises-50 data-[state=open]:bg-rawises-50 whitespace-nowrap text-sm px-3">
+                      Parfüm & Deodorant
+                    </NavigationMenuTrigger>
+                    <NavigationMenuContent>
+                      <div className="w-48 p-2">
+                        <button
+                          onClick={() => handleCategoryClick("Parfüm", "Kadın Deodorant")}
+                          className="block w-full text-left px-3 py-2 text-sm hover:bg-rawises-50 rounded-md transition-colors"
+                        >
+                          Kadın Deodorant
+                        </button>
+                        <button
+                          onClick={() => handleCategoryClick("Parfüm", "Erkek Deodorant")}
+                          className="block w-full text-left px-3 py-2 text-sm hover:bg-rawises-50 rounded-md transition-colors"
+                        >
+                          Erkek Deodorant
+                        </button>
+                        <button
+                          onClick={() => handleCategoryClick("Parfüm", "Parfüm")}
+                          className="block w-full text-left px-3 py-2 text-sm hover:bg-rawises-50 rounded-md transition-colors"
+                        >
+                          Parfüm
+                        </button>
+                        <button
+                          onClick={() => handleCategoryClick("Parfüm")}
+                          className="block w-full text-left px-3 py-2 text-sm hover:bg-rawises-50 rounded-md transition-colors font-medium border-t border-rawises-100 mt-2 pt-2"
+                        >
+                          Tüm Parfüm & Deodorant
+                        </button>
+                      </div>
+                    </NavigationMenuContent>
+                  </NavigationMenuItem>
 
-                {/* Saç Bakımı */}
-                <NavigationMenuItem>
-                  <NavigationMenuTrigger
-                    onClick={() => handleCategoryClick("Saç")}
-                    className="bg-transparent hover:bg-rawises-50 data-[state=open]:bg-rawises-50"
-                  >
-                    Saç Bakımı
-                  </NavigationMenuTrigger>
-                  <NavigationMenuContent>
-                    <div className="w-48 p-2">
-                      <button
-                        onClick={() => handleCategoryClick("Saç", "Şampuan")}
-                        className="block w-full text-left px-3 py-2 text-sm hover:bg-rawises-50 rounded-md transition-colors"
-                      >
-                        Şampuan
-                      </button>
-                      <button
-                        onClick={() => handleCategoryClick("Saç", "Fırça")}
-                        className="block w-full text-left px-3 py-2 text-sm hover:bg-rawises-50 rounded-md transition-colors"
-                      >
-                        Saç Fırçaları
-                      </button>
-                      <button
-                        onClick={() => handleCategoryClick("Saç", "Krem")}
-                        className="block w-full text-left px-3 py-2 text-sm hover:bg-rawises-50 rounded-md transition-colors"
-                      >
-                        Saç Kremi
-                      </button>
-                    </div>
-                  </NavigationMenuContent>
-                </NavigationMenuItem>
+                  {/* Saç Bakımı */}
+                  <NavigationMenuItem>
+                    <NavigationMenuTrigger className="bg-transparent hover:bg-rawises-50 data-[state=open]:bg-rawises-50 whitespace-nowrap text-sm px-3">
+                      Saç Bakımı
+                    </NavigationMenuTrigger>
+                    <NavigationMenuContent>
+                      <div className="w-48 p-2">
+                        <button
+                          onClick={() => handleCategoryClick("Saç", "Şampuan")}
+                          className="block w-full text-left px-3 py-2 text-sm hover:bg-rawises-50 rounded-md transition-colors"
+                        >
+                          Şampuan
+                        </button>
+                        <button
+                          onClick={() => handleCategoryClick("Saç", "Fırça")}
+                          className="block w-full text-left px-3 py-2 text-sm hover:bg-rawises-50 rounded-md transition-colors"
+                        >
+                          Saç Fırçaları
+                        </button>
+                        <button
+                          onClick={() => handleCategoryClick("Saç", "Krem")}
+                          className="block w-full text-left px-3 py-2 text-sm hover:bg-rawises-50 rounded-md transition-colors"
+                        >
+                          Saç Kremi
+                        </button>
+                        <button
+                          onClick={() => handleCategoryClick("Saç")}
+                          className="block w-full text-left px-3 py-2 text-sm hover:bg-rawises-50 rounded-md transition-colors font-medium border-t border-rawises-100 mt-2 pt-2"
+                        >
+                          Tüm Saç Bakımı
+                        </button>
+                      </div>
+                    </NavigationMenuContent>
+                  </NavigationMenuItem>
 
-                {/* Makyaj */}
-                <NavigationMenuItem>
-                  <NavigationMenuTrigger
-                    onClick={() => handleCategoryClick("Makyaj")}
-                    className="bg-transparent hover:bg-rawises-50 data-[state=open]:bg-rawises-50"
-                  >
-                    Makyaj
-                  </NavigationMenuTrigger>
-                  <NavigationMenuContent>
-                    <div className="w-48 p-2">
-                      <button
-                        onClick={() => handleCategoryClick("Makyaj", "Ruj")}
-                        className="block w-full text-left px-3 py-2 text-sm hover:bg-rawises-50 rounded-md transition-colors"
-                      >
-                        Ruj
-                      </button>
-                      <button
-                        onClick={() => handleCategoryClick("Makyaj", "Maskara")}
-                        className="block w-full text-left px-3 py-2 text-sm hover:bg-rawises-50 rounded-md transition-colors"
-                      >
-                        Maskara
-                      </button>
-                      <button
-                        onClick={() => handleCategoryClick("Makyaj", "Fondöten")}
-                        className="block w-full text-left px-3 py-2 text-sm hover:bg-rawises-50 rounded-md transition-colors"
-                      >
-                        Fondöten
-                      </button>
-                      <button
-                        onClick={() => handleCategoryClick("Makyaj", "Allık")}
-                        className="block w-full text-left px-3 py-2 text-sm hover:bg-rawises-50 rounded-md transition-colors"
-                      >
-                        Allık
-                      </button>
-                    </div>
-                  </NavigationMenuContent>
-                </NavigationMenuItem>
+                  {/* Makyaj */}
+                  <NavigationMenuItem>
+                    <NavigationMenuTrigger className="bg-transparent hover:bg-rawises-50 data-[state=open]:bg-rawises-50 whitespace-nowrap text-sm px-3">
+                      Makyaj
+                    </NavigationMenuTrigger>
+                    <NavigationMenuContent>
+                      <div className="w-48 p-2">
+                        <button
+                          onClick={() => handleCategoryClick("Makyaj", "Ruj")}
+                          className="block w-full text-left px-3 py-2 text-sm hover:bg-rawises-50 rounded-md transition-colors"
+                        >
+                          Ruj
+                        </button>
+                        <button
+                          onClick={() => handleCategoryClick("Makyaj", "Maskara")}
+                          className="block w-full text-left px-3 py-2 text-sm hover:bg-rawises-50 rounded-md transition-colors"
+                        >
+                          Maskara
+                        </button>
+                        <button
+                          onClick={() => handleCategoryClick("Makyaj", "Fondöten")}
+                          className="block w-full text-left px-3 py-2 text-sm hover:bg-rawises-50 rounded-md transition-colors"
+                        >
+                          Fondöten
+                        </button>
+                        <button
+                          onClick={() => handleCategoryClick("Makyaj", "Allık")}
+                          className="block w-full text-left px-3 py-2 text-sm hover:bg-rawises-50 rounded-md transition-colors"
+                        >
+                          Allık
+                        </button>
+                        <button
+                          onClick={() => handleCategoryClick("Makyaj")}
+                          className="block w-full text-left px-3 py-2 text-sm hover:bg-rawises-50 rounded-md transition-colors font-medium border-t border-rawises-100 mt-2 pt-2"
+                        >
+                          Tüm Makyaj
+                        </button>
+                      </div>
+                    </NavigationMenuContent>
+                  </NavigationMenuItem>
 
-                {/* Erkek Bakım */}
-                <NavigationMenuItem>
-                  <NavigationMenuTrigger
-                    onClick={() => handleCategoryClick("Erkek")}
-                    className="bg-transparent hover:bg-rawises-50 data-[state=open]:bg-rawises-50"
-                  >
-                    Erkek Bakım
-                  </NavigationMenuTrigger>
-                  <NavigationMenuContent>
-                    <div className="w-48 p-2">
-                      <button
-                        onClick={() => handleCategoryClick("Erkek", "Tıraş")}
-                        className="block w-full text-left px-3 py-2 text-sm hover:bg-rawises-50 rounded-md transition-colors"
-                      >
-                        Tıraş Ürünleri
-                      </button>
-                      <button
-                        onClick={() => handleCategoryClick("Erkek", "Sakal")}
-                        className="block w-full text-left px-3 py-2 text-sm hover:bg-rawises-50 rounded-md transition-colors"
-                      >
-                        Sakal Bakımı
-                      </button>
-                    </div>
-                  </NavigationMenuContent>
-                </NavigationMenuItem>
-              </NavigationMenuList>
-            </NavigationMenu>
+                  {/* Erkek Bakım */}
+                  <NavigationMenuItem>
+                    <NavigationMenuTrigger className="bg-transparent hover:bg-rawises-50 data-[state=open]:bg-rawises-50 whitespace-nowrap text-sm px-3">
+                      Erkek Bakım
+                    </NavigationMenuTrigger>
+                    <NavigationMenuContent>
+                      <div className="w-48 p-2">
+                        <button
+                          onClick={() => handleCategoryClick("Erkek", "Tıraş")}
+                          className="block w-full text-left px-3 py-2 text-sm hover:bg-rawises-50 rounded-md transition-colors"
+                        >
+                          Tıraş Ürünleri
+                        </button>
+                        <button
+                          onClick={() => handleCategoryClick("Erkek", "Sakal")}
+                          className="block w-full text-left px-3 py-2 text-sm hover:bg-rawises-50 rounded-md transition-colors"
+                        >
+                          Sakal Bakımı
+                        </button>
+                        <button
+                          onClick={() => handleCategoryClick("Erkek")}
+                          className="block w-full text-left px-3 py-2 text-sm hover:bg-rawises-50 rounded-md transition-colors font-medium border-t border-rawises-100 mt-2 pt-2"
+                        >
+                          Tüm Erkek Bakım
+                        </button>
+                      </div>
+                    </NavigationMenuContent>
+                  </NavigationMenuItem>
+                </NavigationMenuList>
+              </NavigationMenu>
+            </div>
           </div>
         </div>
 
@@ -631,6 +657,12 @@ export function Header() {
                         className="block text-sm text-rawises-600 hover:text-rawises-800"
                       >
                         Fondöten
+                      </button>
+                      <button
+                        onClick={() => handleCategoryClick("Makyaj", "Allık")}
+                        className="block text-sm text-rawises-600 hover:text-rawises-800"
+                      >
+                        Allık
                       </button>
                     </div>
                   </div>

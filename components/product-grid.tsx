@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Heart, ShoppingCart, Check, Filter, X, Grid3X3, List, Star, Calculator } from "lucide-react"
+import { Heart, ShoppingCart, Check, Filter, X, Calculator } from "lucide-react"
 import Image from "next/image"
 import { stripHtmlTags, calculateDiscountPercentage, type Product } from "@/lib/csv-parser"
 import { useCartStore } from "@/lib/cart-store"
@@ -17,7 +17,8 @@ export function ProductGrid() {
   const [addedItems, setAddedItems] = useState<Set<string>>(new Set())
   const [activeFilter, setActiveFilter] = useState<{ category?: string; subcategory?: string } | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
+  const [currentPage, setCurrentPage] = useState(1)
+  const [productsPerPage] = useState(12)
   const { addItem } = useCartStore()
 
   useEffect(() => {
@@ -27,12 +28,11 @@ export function ProductGrid() {
         const data = await response.json()
 
         if (data.products) {
-          // 0 TL olmayan ürünleri filtrele
           const validProducts = data.products.filter(
             (product: Product) => product.discountPrice > 0 && product.salePrice > 0,
           )
           setProducts(validProducts)
-          setFilteredProducts(validProducts.slice(0, 12))
+          setFilteredProducts(validProducts)
         }
         setLoading(false)
       } catch (error) {
@@ -49,30 +49,19 @@ export function ProductGrid() {
       const { category, subcategory, csvCategory } = event.detail
       setActiveFilter({ category, subcategory })
       setSearchQuery("")
+      setCurrentPage(1)
 
-      // CSV kategorilerine göre gelişmiş filtreleme
       const filtered = products.filter((product) => {
         const searchTerm = csvCategory || subcategory || category
 
-        // CSV'deki "Kategoriler" alanında arama yap
         const categoryMatch = product.categories.toLowerCase().includes(searchTerm.toLowerCase())
-
-        // Ürün adında arama yap
         const nameMatch = product.name.toLowerCase().includes(searchTerm.toLowerCase())
-
-        // Marka alanında arama yap
         const brandMatch = product.brand.toLowerCase().includes(searchTerm.toLowerCase())
-
-        // Etiketler alanında arama yap
         const tagMatch = product.tags.toLowerCase().includes(searchTerm.toLowerCase())
-
-        // Açıklama alanında arama yap
         const descriptionMatch = stripHtmlTags(product.description).toLowerCase().includes(searchTerm.toLowerCase())
 
-        // Özel kategori eşleştirmeleri
         let specialMatch = false
 
-        // Makyaj kategorisi için özel eşleştirmeler
         if (
           searchTerm.toLowerCase().includes("makyaj") ||
           searchTerm.toLowerCase().includes("ruj") ||
@@ -87,7 +76,6 @@ export function ProductGrid() {
             product.name.toLowerCase().includes("fondöten")
         }
 
-        // Cilt bakımı için özel eşleştirmeler
         if (searchTerm.toLowerCase().includes("cilt") || searchTerm.toLowerCase().includes("bakım")) {
           specialMatch =
             product.categories.toLowerCase().includes("cilt") ||
@@ -96,7 +84,6 @@ export function ProductGrid() {
             product.name.toLowerCase().includes("serum")
         }
 
-        // Saç bakımı için özel eşleştirmeler
         if (searchTerm.toLowerCase().includes("saç") || searchTerm.toLowerCase().includes("şampuan")) {
           specialMatch =
             product.categories.toLowerCase().includes("saç") ||
@@ -108,20 +95,20 @@ export function ProductGrid() {
       })
 
       console.log(`Filtering for: ${category}, Found: ${filtered.length} products`)
-      setFilteredProducts(filtered.slice(0, 24))
+      setFilteredProducts(filtered)
     }
 
     const handleSearch = (event: CustomEvent) => {
       const { query } = event.detail
       setSearchQuery(query)
       setActiveFilter(null)
+      setCurrentPage(1)
 
       if (!query.trim()) {
-        setFilteredProducts(products.slice(0, 12))
+        setFilteredProducts(products)
         return
       }
 
-      // Gelişmiş arama algoritması
       const searchTerms = query
         .toLowerCase()
         .split(" ")
@@ -138,11 +125,9 @@ export function ProductGrid() {
           .join(" ")
           .toLowerCase()
 
-        // Tüm arama terimlerinin en az birinin eşleşmesi gerekiyor
         return searchTerms.some((term) => searchableText.includes(term))
       })
 
-      // Relevance scoring - daha iyi eşleşmeleri üstte göster
       const scoredResults = filtered.map((product) => {
         let score = 0
         const productName = product.name.toLowerCase()
@@ -158,16 +143,16 @@ export function ProductGrid() {
         return { product, score }
       })
 
-      // Score'a göre sırala ve ürünleri al
       const sortedResults = scoredResults.sort((a, b) => b.score - a.score).map((item) => item.product)
 
-      setFilteredProducts(sortedResults.slice(0, 24))
+      setFilteredProducts(sortedResults)
     }
 
     const handleClearSearch = () => {
       setSearchQuery("")
       setActiveFilter(null)
-      setFilteredProducts(products.slice(0, 12))
+      setCurrentPage(1)
+      setFilteredProducts(products)
     }
 
     window.addEventListener("categoryFilter", handleCategoryFilter as EventListener)
@@ -197,7 +182,8 @@ export function ProductGrid() {
   const clearFilter = () => {
     setActiveFilter(null)
     setSearchQuery("")
-    setFilteredProducts(products.slice(0, 12))
+    setCurrentPage(1)
+    setFilteredProducts(products)
   }
 
   const createProductSlug = (product: Product) => {
@@ -212,26 +198,37 @@ export function ProductGrid() {
     )
   }
 
-  // KDV dahil fiyat hesaplama
   const calculatePriceWithVAT = (price: number) => {
-    return price * 1.2 // %20 KDV ekleme
+    return price * 1.2
+  }
+
+  const totalPages = Math.ceil(filteredProducts.length / productsPerPage)
+  const startIndex = (currentPage - 1) * productsPerPage
+  const endIndex = startIndex + productsPerPage
+  const currentProducts = filteredProducts.slice(startIndex, endIndex)
+
+  const goToPage = (page: number) => {
+    setCurrentPage(page)
+    window.scrollTo({ top: 0, behavior: "smooth" })
   }
 
   if (loading) {
     return (
       <section className="py-6 lg:py-12">
         <div className="container mx-auto px-4">
-          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
-            {[...Array(8)].map((_, i) => (
-              <Card key={i} className="animate-pulse">
-                <div className="relative aspect-square bg-gray-200 rounded-t-lg"></div>
-                <CardContent className="p-2 sm:p-3 lg:p-4">
-                  <div className="h-4 bg-gray-200 rounded mb-2"></div>
-                  <div className="h-3 bg-gray-200 rounded mb-4"></div>
-                  <div className="h-6 bg-gray-200 rounded"></div>
-                </CardContent>
-              </Card>
-            ))}
+          <div className="relative">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
+              {[...Array(12)].map((_, i) => (
+                <Card key={i} className="animate-pulse">
+                  <div className="relative aspect-square bg-gray-200 rounded-t-lg"></div>
+                  <CardContent className="p-2 sm:p-3 lg:p-4">
+                    <div className="h-4 bg-gray-200 rounded mb-2"></div>
+                    <div className="h-3 bg-gray-200 rounded mb-4"></div>
+                    <div className="h-6 bg-gray-200 rounded"></div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
           </div>
         </div>
       </section>
@@ -257,30 +254,6 @@ export function ProductGrid() {
             </div>
 
             <div className="flex items-center gap-2">
-              {/* View Mode Toggle - Sadece desktop */}
-              <div className="hidden lg:flex items-center border border-rawises-200 rounded-lg p-1">
-                <Button
-                  variant={viewMode === "grid" ? "default" : "ghost"}
-                  size="sm"
-                  onClick={() => setViewMode("grid")}
-                  className={`p-2 ${
-                    viewMode === "grid" ? "bg-rawises-600 text-white" : "text-rawises-600 hover:bg-rawises-50"
-                  }`}
-                >
-                  <Grid3X3 className="w-4 h-4" />
-                </Button>
-                <Button
-                  variant={viewMode === "list" ? "default" : "ghost"}
-                  size="sm"
-                  onClick={() => setViewMode("list")}
-                  className={`p-2 ${
-                    viewMode === "list" ? "bg-rawises-600 text-white" : "text-rawises-600 hover:bg-rawises-50"
-                  }`}
-                >
-                  <List className="w-4 h-4" />
-                </Button>
-              </div>
-
               {(activeFilter || searchQuery) && (
                 <Button
                   variant="outline"
@@ -307,238 +280,171 @@ export function ProductGrid() {
           )}
         </div>
 
-        {/* Grid View */}
-        {(viewMode === "grid" || window.innerWidth < 1024) && (
-          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
-            {filteredProducts.map((product) => {
-              const isAdded = addedItems.has(product.id)
-              const productSlug = createProductSlug(product)
-              const priceWithVAT = calculatePriceWithVAT(product.discountPrice)
-              const salePriceWithVAT = calculatePriceWithVAT(product.salePrice)
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
+          {currentProducts.map((product) => {
+            const isAdded = addedItems.has(product.id)
+            const productSlug = createProductSlug(product)
+            const priceWithVAT = calculatePriceWithVAT(product.discountPrice)
+            const salePriceWithVAT = calculatePriceWithVAT(product.salePrice)
 
-              return (
-                <Card
-                  key={product.id}
-                  className="group hover:shadow-lg transition-all duration-300 border-rawises-100 hover:border-rawises-300 flex flex-col h-full"
-                >
-                  <Link href={`/product/${product.id}/${productSlug}`} className="block">
-                    <div className="relative aspect-square overflow-hidden rounded-t-lg">
-                      <Image
-                        src={product.imageUrl || "/placeholder.svg"}
-                        alt={product.name}
-                        fill
-                        className="object-cover group-hover:scale-105 transition-transform duration-300"
-                        crossOrigin="anonymous"
-                        onError={(e) => {
-                          const target = e.target as HTMLImageElement
-                          target.src = "/placeholder.svg?height=300&width=300"
-                        }}
-                      />
-                      <div className="absolute top-1 sm:top-2 left-1 sm:left-2">
-                        <Badge variant="destructive" className="bg-accent-500 hover:bg-accent-600 text-xs px-1 sm:px-2">
-                          %{calculateDiscountPercentage(product.salePrice, product.discountPrice)}
-                        </Badge>
-                      </div>
-                      <div className="absolute top-1 sm:top-2 right-1 sm:right-2">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="bg-white/80 hover:bg-white text-rawises-600 hover:text-brand-500 h-6 w-6 sm:h-8 sm:w-8 p-0"
-                          onClick={(e) => e.preventDefault()}
-                        >
-                          <Heart className="w-3 h-3 sm:w-4 sm:h-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  </Link>
-
-                  <CardContent className="p-2 sm:p-3 lg:p-4 flex flex-col flex-grow">
-                    <div className="mb-1 sm:mb-2">
-                      <Badge variant="outline" className="text-xs border-rawises-200 text-rawises-700 px-1 sm:px-2">
-                        {product.brand}
+            return (
+              <Card
+                key={product.id}
+                className="group hover:shadow-lg transition-all duration-300 border-rawises-100 hover:border-rawises-300 flex flex-col h-full"
+              >
+                <Link href={`/product/${product.id}/${productSlug}`} className="block">
+                  <div className="relative aspect-square overflow-hidden rounded-t-lg">
+                    <Image
+                      src={product.imageUrl || "/placeholder.svg"}
+                      alt={product.name}
+                      fill
+                      className="object-cover group-hover:scale-105 transition-transform duration-300"
+                      crossOrigin="anonymous"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement
+                        target.src = "/placeholder.svg?height=300&width=300"
+                      }}
+                    />
+                    <div className="absolute top-1 sm:top-2 left-1 sm:left-2">
+                      <Badge variant="destructive" className="bg-accent-500 hover:bg-accent-600 text-xs px-1 sm:px-2">
+                        %{calculateDiscountPercentage(product.salePrice, product.discountPrice)}
                       </Badge>
                     </div>
-
-                    <Link href={`/product/${product.id}/${productSlug}`}>
-                      <h3 className="font-semibold text-xs sm:text-sm mb-1 sm:mb-2 line-clamp-2 text-rawises-800 flex-grow leading-tight hover:text-rawises-600 transition-colors">
-                        {product.name}
-                      </h3>
-                    </Link>
-
-                    <p className="text-xs text-rawises-600 mb-2 sm:mb-3 line-clamp-1 hidden sm:block">
-                      {stripHtmlTags(product.description).substring(0, 40)}...
-                    </p>
-
-                    <div className="flex flex-col gap-1 mb-2 sm:mb-3">
-                      {/* KDV Hariç Fiyat */}
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs text-gray-500">KDV Hariç:</span>
-                        <div className="text-right">
-                          <span className="text-xs line-through text-gray-400">{product.salePrice} TL</span>
-                          <div className="text-sm font-medium text-rawises-600">{product.discountPrice} TL</div>
-                        </div>
-                      </div>
-
-                      {/* KDV Dahil Fiyat */}
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs text-gray-500 flex items-center gap-1">
-                          <Calculator className="w-3 h-3" />
-                          KDV Dahil:
-                        </span>
-                        <div className="text-right">
-                          <span className="text-xs line-through text-gray-400">{salePriceWithVAT.toFixed(2)} TL</span>
-                          <div className="text-sm sm:text-base lg:text-lg font-bold bg-gradient-to-r from-rawises-600 to-brand-500 bg-clip-text text-transparent">
-                            {priceWithVAT.toFixed(2)} TL
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="mt-auto">
+                    <div className="absolute top-1 sm:top-2 right-1 sm:right-2">
                       <Button
-                        className={`w-full transition-all duration-300 text-xs sm:text-sm py-1 sm:py-2 ${
-                          isAdded
-                            ? "bg-accent-600 hover:bg-accent-700"
-                            : "bg-gradient-to-r from-rawises-600 to-brand-500 hover:from-rawises-700 hover:to-brand-600"
-                        }`}
                         size="sm"
-                        onClick={() => handleAddToCart(product)}
+                        variant="ghost"
+                        className="bg-white/80 hover:bg-white text-rawises-600 hover:text-brand-500 h-6 w-6 sm:h-8 sm:w-8 p-0"
+                        onClick={(e) => e.preventDefault()}
                       >
-                        {isAdded ? (
-                          <>
-                            <Check className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
-                            <span className="hidden sm:inline">Sepete Eklendi</span>
-                            <span className="sm:hidden">Eklendi</span>
-                          </>
-                        ) : (
-                          <>
-                            <ShoppingCart className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
-                            <span className="hidden sm:inline">Sepete Ekle</span>
-                            <span className="sm:hidden">Ekle</span>
-                          </>
-                        )}
+                        <Heart className="w-3 h-3 sm:w-4 sm:h-4" />
                       </Button>
                     </div>
-                  </CardContent>
-                </Card>
-              )
-            })}
-          </div>
-        )}
+                  </div>
+                </Link>
 
-        {/* List View - Sadece desktop */}
-        {viewMode === "list" && window.innerWidth >= 1024 && (
-          <div className="space-y-4">
-            {filteredProducts.map((product) => {
-              const isAdded = addedItems.has(product.id)
-              const productSlug = createProductSlug(product)
-              const priceWithVAT = calculatePriceWithVAT(product.discountPrice)
-              const salePriceWithVAT = calculatePriceWithVAT(product.salePrice)
+                <CardContent className="p-2 sm:p-3 lg:p-4 flex flex-col flex-grow">
+                  <div className="mb-1 sm:mb-2">
+                    <Badge variant="outline" className="text-xs border-rawises-200 text-rawises-700 px-1 sm:px-2">
+                      {product.brand}
+                    </Badge>
+                  </div>
 
-              return (
-                <Card
-                  key={product.id}
-                  className="group hover:shadow-lg transition-all duration-300 border-rawises-100 hover:border-rawises-300"
-                >
-                  <CardContent className="p-4">
-                    <div className="flex gap-4">
-                      <Link href={`/product/${product.id}/${productSlug}`} className="flex-shrink-0">
-                        <div className="relative w-24 h-24 sm:w-32 sm:h-32">
-                          <Image
-                            src={product.imageUrl || "/placeholder.svg"}
-                            alt={product.name}
-                            fill
-                            className="object-cover rounded-lg group-hover:scale-105 transition-transform duration-300"
-                            crossOrigin="anonymous"
-                            onError={(e) => {
-                              const target = e.target as HTMLImageElement
-                              target.src = "/placeholder.svg?height=128&width=128"
-                            }}
-                          />
-                          <div className="absolute top-1 left-1">
-                            <Badge variant="destructive" className="bg-accent-500 text-xs px-1">
-                              %{calculateDiscountPercentage(product.salePrice, product.discountPrice)}
-                            </Badge>
-                          </div>
-                        </div>
-                      </Link>
+                  <Link href={`/product/${product.id}/${productSlug}`}>
+                    <h3 className="font-semibold text-xs sm:text-sm mb-1 sm:mb-2 line-clamp-2 text-rawises-800 flex-grow leading-tight hover:text-rawises-600 transition-colors">
+                      {product.name}
+                    </h3>
+                  </Link>
 
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between mb-2">
-                          <div className="flex-1">
-                            <Badge variant="outline" className="text-xs border-rawises-200 text-rawises-700 mb-2">
-                              {product.brand}
-                            </Badge>
-                            <Link href={`/product/${product.id}/${productSlug}`}>
-                              <h3 className="font-semibold text-sm sm:text-base text-rawises-800 mb-2 line-clamp-2 hover:text-rawises-600 transition-colors">
-                                {product.name}
-                              </h3>
-                            </Link>
-                            <p className="text-xs sm:text-sm text-rawises-600 mb-3 line-clamp-2">
-                              {stripHtmlTags(product.description).substring(0, 120)}...
-                            </p>
-                          </div>
-                          <Button size="sm" variant="ghost" className="text-rawises-600 hover:text-brand-500 ml-2">
-                            <Heart className="w-4 h-4" />
-                          </Button>
-                        </div>
+                  <p className="text-xs text-rawises-600 mb-2 sm:mb-3 line-clamp-1 hidden sm:block">
+                    {stripHtmlTags(product.description).substring(0, 40)}...
+                  </p>
 
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-6">
-                            <div>
-                              <div className="text-xs text-gray-500 mb-1">KDV Hariç:</div>
-                              <span className="text-sm line-through text-gray-400 block">{product.salePrice} TL</span>
-                              <div className="text-base font-medium text-rawises-600">{product.discountPrice} TL</div>
-                            </div>
-                            <div>
-                              <div className="text-xs text-gray-500 mb-1 flex items-center gap-1">
-                                <Calculator className="w-3 h-3" />
-                                KDV Dahil:
-                              </div>
-                              <span className="text-sm line-through text-gray-400 block">
-                                {salePriceWithVAT.toFixed(2)} TL
-                              </span>
-                              <div className="text-lg font-bold bg-gradient-to-r from-rawises-600 to-brand-500 bg-clip-text text-transparent">
-                                {priceWithVAT.toFixed(2)} TL
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                              <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                              <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                              <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                              <Star className="w-4 h-4 text-gray-300" />
-                              <span className="text-xs text-gray-500 ml-1">(4.2)</span>
-                            </div>
-                          </div>
+                  <div className="flex flex-col gap-1 mb-2 sm:mb-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-gray-500">KDV Hariç:</span>
+                      <div className="text-right">
+                        <span className="text-xs line-through text-gray-400">{product.salePrice} TL</span>
+                        <div className="text-sm font-medium text-rawises-600">{product.discountPrice} TL</div>
+                      </div>
+                    </div>
 
-                          <Button
-                            className={`transition-all duration-300 ${
-                              isAdded
-                                ? "bg-accent-600 hover:bg-accent-700"
-                                : "bg-gradient-to-r from-rawises-600 to-brand-500 hover:from-rawises-700 hover:to-brand-600"
-                            }`}
-                            onClick={() => handleAddToCart(product)}
-                          >
-                            {isAdded ? (
-                              <>
-                                <Check className="w-4 h-4 mr-2" />
-                                Sepete Eklendi
-                              </>
-                            ) : (
-                              <>
-                                <ShoppingCart className="w-4 h-4 mr-2" />
-                                Sepete Ekle
-                              </>
-                            )}
-                          </Button>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-gray-500 flex items-center gap-1">
+                        <Calculator className="w-3 h-3" />
+                        KDV Dahil:
+                      </span>
+                      <div className="text-right">
+                        <span className="text-xs line-through text-gray-400">{salePriceWithVAT.toFixed(2)} TL</span>
+                        <div className="text-sm sm:text-base lg:text-lg font-bold bg-gradient-to-r from-rawises-600 to-brand-500 bg-clip-text text-transparent">
+                          {priceWithVAT.toFixed(2)} TL
                         </div>
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
-              )
+                  </div>
+
+                  <div className="mt-auto">
+                    <Button
+                      className={`w-full transition-all duration-300 text-xs sm:text-sm py-1 sm:py-2 ${
+                        isAdded
+                          ? "bg-accent-600 hover:bg-accent-700"
+                          : "bg-gradient-to-r from-rawises-600 to-brand-500 hover:from-rawises-700 hover:to-brand-600"
+                      }`}
+                      size="sm"
+                      onClick={() => handleAddToCart(product)}
+                    >
+                      {isAdded ? (
+                        <>
+                          <Check className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+                          <span className="hidden sm:inline">Sepete Eklendi</span>
+                          <span className="sm:hidden">Eklendi</span>
+                        </>
+                      ) : (
+                        <>
+                          <ShoppingCart className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+                          <span className="hidden sm:inline">Sepete Ekle</span>
+                          <span className="sm:hidden">Ekle</span>
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )
+          })}
+        </div>
+
+        {totalPages > 1 && (
+          <div className="flex justify-center items-center mt-8 gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => goToPage(currentPage - 1)}
+              disabled={currentPage === 1}
+              className="border-rawises-300 text-rawises-700 hover:bg-rawises-50"
+            >
+              Önceki
+            </Button>
+
+            {Array.from({ length: totalPages }).map((_, index) => {
+              const page = index + 1
+              const isCurrentPage = page === currentPage
+
+              if (page === 1 || page === totalPages || (page >= currentPage - 1 && page <= currentPage + 1)) {
+                return (
+                  <Button
+                    key={page}
+                    variant={isCurrentPage ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => goToPage(page)}
+                    className={
+                      isCurrentPage
+                        ? "bg-rawises-600 hover:bg-rawises-700"
+                        : "border-rawises-300 text-rawises-700 hover:bg-rawises-50"
+                    }
+                  >
+                    {page}
+                  </Button>
+                )
+              } else if (page === currentPage - 2 || page === currentPage + 2) {
+                return (
+                  <span key={page} className="text-gray-400">
+                    ...
+                  </span>
+                )
+              }
+              return null
             })}
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => goToPage(currentPage + 1)}
+              disabled={currentPage === totalPages}
+              className="border-rawises-300 text-rawises-700 hover:bg-rawises-50"
+            >
+              Sonraki
+            </Button>
           </div>
         )}
 
@@ -559,19 +465,6 @@ export function ProductGrid() {
           </div>
         )}
 
-        {filteredProducts.length > 0 && (
-          <div className="text-center mt-8">
-            <Button
-              variant="outline"
-              size="lg"
-              className="border-rawises-300 text-rawises-700 hover:bg-rawises-50 bg-transparent"
-            >
-              Daha Fazla Ürün Gör
-            </Button>
-          </div>
-        )}
-
-        {/* KDV Bilgi Notu */}
         <div className="mt-8 text-center">
           <p className="text-xs text-gray-500">
             * Tüm fiyatlara %20 KDV dahildir. Sepette KDV detayını görebilirsiniz.

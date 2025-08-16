@@ -4,8 +4,6 @@ import { useState, useEffect } from "react"
 import { Header } from "@/components/header"
 import { HeroSection } from "@/components/hero-section"
 import { ProductGrid } from "@/components/product-grid"
-import { PromotionalBanners } from "@/components/promotional-banners"
-import { FeaturedProducts } from "@/components/featured-products"
 import { ProductDetailModal } from "@/components/product-detail-modal"
 import { WelcomeScreen } from "@/components/welcome-screen"
 import { Footer } from "@/components/footer"
@@ -14,7 +12,7 @@ import type { Product } from "@/lib/csv-parser"
 export default function HomePage() {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [showWelcome, setShowWelcome] = useState(true)
+  const [showWelcome, setShowWelcome] = useState(false) // Disabled welcome screen to show navigation menu
 
   useEffect(() => {
     // Her zaman welcome screen'i göster (test için)
@@ -50,9 +48,7 @@ export default function HomePage() {
       {!showWelcome && (
         <>
           <Header />
-          <PromotionalBanners />
           <HeroSection />
-          <FeaturedProducts />
           <ProductGrid />
           <Footer />
         </>
