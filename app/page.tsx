@@ -12,10 +12,13 @@ import type { Product } from "@/lib/csv-parser"
 export default function HomePage() {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [showWelcome, setShowWelcome] = useState(false) // Disabled welcome screen to show navigation menu
+  const [showWelcome, setShowWelcome] = useState(true) // Enable welcome screen by default and check localStorage
 
   useEffect(() => {
-    // Her zaman welcome screen'i göster (test için)
+    const hasSeenWelcome = localStorage.getItem("hasSeenWelcome")
+    if (hasSeenWelcome === "true") {
+      setShowWelcome(false)
+    }
   }, [])
 
   useEffect(() => {
@@ -38,7 +41,7 @@ export default function HomePage() {
 
   const handleWelcomeComplete = () => {
     setShowWelcome(false)
-    // localStorage.setItem("hasSeenWelcome", "true") // Test için kapalı
+    localStorage.setItem("hasSeenWelcome", "true")
   }
 
   return (

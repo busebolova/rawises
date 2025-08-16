@@ -73,7 +73,9 @@ export function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
                       <p className="text-xs text-gray-500 truncate">{item.brand}</p>
                       <div className="flex items-center justify-between mt-2">
                         <div>
-                          <span className="text-sm font-bold text-purple-600">{item.discountPrice} TL</span>
+                          <span className="text-sm font-bold text-purple-600">
+                            {(Number.parseFloat(item.discountPrice?.toString() || "0") || 0).toFixed(2)} TL
+                          </span>
                           <p className="text-xs text-gray-400">KDV Hariç</p>
                         </div>
                         <div className="flex items-center gap-1 sm:gap-2">

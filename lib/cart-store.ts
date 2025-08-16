@@ -47,10 +47,12 @@ export const useCartStore = create<CartStore>()(
           }))
         }
 
-        // Update totals with VAT calculation
         const newItems = get().items
         const totalItems = newItems.reduce((sum, item) => sum + item.quantity, 0)
-        const totalPriceWithoutVAT = newItems.reduce((sum, item) => sum + item.discountPrice * item.quantity, 0)
+        const totalPriceWithoutVAT = newItems.reduce((sum, item) => {
+          const price = Number.parseFloat(item.discountPrice?.toString() || "0") || 0
+          return sum + price * item.quantity
+        }, 0)
         const vatAmount = totalPriceWithoutVAT * VAT_RATE
         const totalPrice = totalPriceWithoutVAT + vatAmount
 
@@ -62,10 +64,12 @@ export const useCartStore = create<CartStore>()(
           items: state.items.filter((item) => item.id !== productId),
         }))
 
-        // Update totals with VAT calculation
         const newItems = get().items
         const totalItems = newItems.reduce((sum, item) => sum + item.quantity, 0)
-        const totalPriceWithoutVAT = newItems.reduce((sum, item) => sum + item.discountPrice * item.quantity, 0)
+        const totalPriceWithoutVAT = newItems.reduce((sum, item) => {
+          const price = Number.parseFloat(item.discountPrice?.toString() || "0") || 0
+          return sum + price * item.quantity
+        }, 0)
         const vatAmount = totalPriceWithoutVAT * VAT_RATE
         const totalPrice = totalPriceWithoutVAT + vatAmount
 
@@ -82,10 +86,12 @@ export const useCartStore = create<CartStore>()(
           items: state.items.map((item) => (item.id === productId ? { ...item, quantity } : item)),
         }))
 
-        // Update totals with VAT calculation
         const newItems = get().items
         const totalItems = newItems.reduce((sum, item) => sum + item.quantity, 0)
-        const totalPriceWithoutVAT = newItems.reduce((sum, item) => sum + item.discountPrice * item.quantity, 0)
+        const totalPriceWithoutVAT = newItems.reduce((sum, item) => {
+          const price = Number.parseFloat(item.discountPrice?.toString() || "0") || 0
+          return sum + price * item.quantity
+        }, 0)
         const vatAmount = totalPriceWithoutVAT * VAT_RATE
         const totalPrice = totalPriceWithoutVAT + vatAmount
 
