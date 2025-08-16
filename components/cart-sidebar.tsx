@@ -3,6 +3,8 @@ import { X, Plus, Minus, ShoppingBag } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { useCartStore } from "@/lib/cart-store"
+import { PaymentModal } from "@/components/payment-modal"
+import { useState } from "react"
 import Image from "next/image"
 
 interface CartSidebarProps {
@@ -12,8 +14,13 @@ interface CartSidebarProps {
 
 export function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
   const { items, totalItems, totalPrice, updateQuantity, removeItem, clearCart } = useCartStore()
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false)
 
   if (!isOpen) return null
+
+  const handleCheckout = () => {
+    setIsPaymentModalOpen(true)
+  }
 
   return (
     <>
@@ -50,21 +57,21 @@ export function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
                     <Image
                       src={item.imageUrl || "/placeholder.svg"}
                       alt={item.name}
-                      width={60}
-                      height={60}
-                      className="object-cover rounded flex-shrink-0"
+                      width={50}
+                      height={50}
+                      className="object-cover rounded sm:w-[60px] sm:h-[60px]"
                       crossOrigin="anonymous"
                       onError={(e) => {
                         const target = e.target as HTMLImageElement
-                        target.src = "/placeholder.svg?height=60&width=60"
+                        target.src = "/placeholder.svg?height=50&width=50"
                       }}
                     />
                     <div className="flex-1 min-w-0">
-                      <h3 className="text-sm font-medium line-clamp-2">{item.name}</h3>
-                      <p className="text-xs text-gray-500">{item.brand}</p>
+                      <h3 className="text-xs sm:text-sm font-medium line-clamp-2">{item.name}</h3>
+                      <p className="text-xs text-gray-500 truncate">{item.brand}</p>
                       <div className="flex items-center justify-between mt-2">
                         <span className="text-sm font-bold text-purple-600">{item.discountPrice} TL</span>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1 sm:gap-2">
                           <Button
                             size="sm"
                             variant="outline"
@@ -73,7 +80,7 @@ export function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
                           >
                             <Minus className="w-3 h-3" />
                           </Button>
-                          <span className="text-sm font-medium w-8 text-center">{item.quantity}</span>
+                          <span className="text-sm font-medium w-6 sm:w-8 text-center">{item.quantity}</span>
                           <Button
                             size="sm"
                             variant="outline"
@@ -88,7 +95,7 @@ export function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
                     <Button
                       size="sm"
                       variant="ghost"
-                      className="text-red-500 hover:text-red-700 p-1 flex-shrink-0"
+                      className="text-red-500 hover:text-red-700 p-1"
                       onClick={() => removeItem(item.id)}
                     >
                       <X className="w-4 h-4" />
@@ -108,7 +115,12 @@ export function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
               </div>
 
               <div className="space-y-2">
-                <Button className="w-full bg-purple-600 hover:bg-purple-700">Sepeti Onayla</Button>
+                <Button
+                  className="w-full bg-gradient-to-r from-rawises-600 to-brand-500 hover:from-rawises-700 hover:to-brand-600"
+                  onClick={handleCheckout}
+                >
+                  Sepeti Onayla
+                </Button>
                 <Button variant="outline" className="w-full bg-transparent" onClick={clearCart}>
                   Sepeti Temizle
                 </Button>
@@ -117,6 +129,9 @@ export function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
           )}
         </div>
       </div>
+
+      {/* Payment Modal */}
+      <PaymentModal isOpen={isPaymentModalOpen} onClose={() => setIsPaymentModalOpen(false)} />
     </>
   )
 }

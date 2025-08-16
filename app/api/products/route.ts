@@ -1,17 +1,52 @@
-export const dynamic = "force-dynamic"
+import { NextResponse } from "next/server"
 
-import { type NextRequest, NextResponse } from "next/server"
-import { parseCSVProducts, type Product } from "@/lib/csv-parser"
+interface Product {
+  id: string
+  variantId: string
+  name: string
+  description: string
+  salePrice: number
+  discountPrice: number
+  purchasePrice: number
+  barcode: string
+  sku: string
+  brand: string
+  categories: string
+  tags: string
+  imageUrl: string
+  metaTitle: string
+  metaDescription: string
+  slug: string
+  stockAdana: number
+  stockMainWarehouse: number
+  isActive: boolean
+  createdDate: string
+}
 
-export async function GET(request: NextRequest) {
+function parseCSVLine(line: string): string[] {
+  const result: string[] = []
+  let current = ""
+  let inQuotes = false
+
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i]
+
+    if (char === '"') {
+      inQuotes = !inQuotes
+    } else if (char === "," && !inQuotes) {
+      result.push(current.trim())
+      current = ""
+    } else {
+      current += char
+    }
+  }
+
+  result.push(current.trim())
+  return result
+}
+
+export async function GET() {
   try {
-    const { searchParams } = new URL(request.url)
-    const query = searchParams.get("q")
-    const sortBy = searchParams.get("sortBy")
-    const limit = searchParams.get("limit")
-
-    console.log(`Products API Request: query=${query}, sortBy=${sortBy}, limit=${limit}`)
-
     const response = await fetch(
       "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/ikas-urunler-zmnfhV8bFHFTmr603W1kIsWmJk4QiD.csv",
     )
@@ -21,78 +56,53 @@ export async function GET(request: NextRequest) {
     }
 
     const csvText = await response.text()
-    const allProducts: Product[] = parseCSVProducts(csvText)
 
-    console.log(`Total products loaded: ${allProducts.length}`)
+    // CSV'yi parse et
+    const lines = csvText.split("\n")
+    const headers = lines[0].split(",").map((h) => h.replace(/"/g, "").trim())
 
-    let filteredProducts = allProducts
+    const products: Product[] = []
 
-    // Search filter
-    if (query) {
-      const lowerCaseQuery = query.toLowerCase()
-      filteredProducts = allProducts.filter(
-        (product) =>
-          product.name.toLowerCase().includes(lowerCaseQuery) ||
-          product.description.toLowerCase().includes(lowerCaseQuery) ||
-          product.brand.toLowerCase().includes(lowerCaseQuery) ||
-          product.categories.toLowerCase().includes(lowerCaseQuery) ||
-          product.tags.toLowerCase().includes(lowerCaseQuery),
-      )
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i]
+      if (!line.trim()) continue
 
-      console.log(`Products after search filter (${query}): ${filteredProducts.length}`)
-    }
+      const values = parseCSVLine(line)
 
-    // Sorting
-    if (sortBy) {
-      filteredProducts.sort((a, b) => {
-        switch (sortBy) {
-          case "price-asc":
-            return a.discountPrice - b.discountPrice
-          case "price-desc":
-            return b.discountPrice - a.discountPrice
-          case "discount-asc":
-            return a.discountPercentage - b.discountPercentage
-          case "discount-desc":
-            return b.discountPercentage - a.discountPercentage
-          case "date-asc":
-            return new Date(a.createdDate).getTime() - new Date(b.createdDate).getTime()
-          case "date-desc":
-            return new Date(b.createdDate).getTime() - new Date(a.createdDate).getTime()
-          case "name-asc":
-            return a.name.localeCompare(b.name, "tr")
-          case "name-desc":
-            return b.name.localeCompare(a.name, "tr")
-          default:
-            return new Date(b.createdDate).getTime() - new Date(a.createdDate).getTime()
-        }
-      })
-    } else {
-      // Default sorting: En son eklenenler önce
-      filteredProducts.sort((a, b) => new Date(b.createdDate).getTime() - new Date(a.createdDate).getTime())
-    }
+      if (values.length < headers.length) continue
 
-    // Limit results
-    if (limit) {
-      const limitNum = Number.parseInt(limit, 10)
-      if (!isNaN(limitNum) && limitNum > 0) {
-        filteredProducts = filteredProducts.slice(0, limitNum)
+      const product: Product = {
+        id: values[headers.indexOf("Ürün Grup ID")] || "",
+        variantId: values[headers.indexOf("Varyant ID")] || "",
+        name: values[headers.indexOf("İsim")] || "",
+        description: values[headers.indexOf("Açıklama")] || "",
+        salePrice: Number.parseFloat(values[headers.indexOf("Satış Fiyatı")] || "0"),
+        discountPrice: Number.parseFloat(values[headers.indexOf("İndirimli Fiyatı")] || "0"),
+        purchasePrice: Number.parseFloat(values[headers.indexOf("Alış Fiyatı")] || "0"),
+        barcode: values[headers.indexOf("Barkod Listesi")] || "",
+        sku: values[headers.indexOf("SKU")] || "",
+        brand: values[headers.indexOf("Marka")] || "",
+        categories: values[headers.indexOf("Kategoriler")] || "",
+        tags: values[headers.indexOf("Etiketler")] || "",
+        imageUrl: values[headers.indexOf("Resim URL")] || "",
+        metaTitle: values[headers.indexOf("Metadata Başlık")] || "",
+        metaDescription: values[headers.indexOf("Metadata Açıklama")] || "",
+        slug: values[headers.indexOf("Slug")] || "",
+        stockAdana: Number.parseInt(values[headers.indexOf("Stok:Adana Selahattin Eyyübi")] || "0"),
+        stockMainWarehouse: Number.parseInt(values[headers.indexOf("Stok:Ana Depo")] || "0"),
+        isActive: values[headers.indexOf("Varyant Aktiflik")] === "true",
+        createdDate: values[headers.indexOf("Oluşturulma Tarihi")] || "",
+      }
+
+      // Sadece aktif, geçerli fiyatlı ve resimli ürünleri ekle
+      if (product.isActive && product.name && product.imageUrl && product.discountPrice > 0 && product.salePrice > 0) {
+        products.push(product)
       }
     }
 
-    return NextResponse.json({
-      products: filteredProducts,
-      total: filteredProducts.length,
-      sortBy: sortBy || "date-desc",
-    })
+    return NextResponse.json({ products, total: products.length })
   } catch (error) {
-    console.error("Product fetch error:", error)
-    return NextResponse.json(
-      {
-        error: "Failed to fetch products",
-        products: [],
-        total: 0,
-      },
-      { status: 500 },
-    )
+    console.error("CSV parse error:", error)
+    return NextResponse.json({ error: "Failed to parse CSV", products: [], total: 0 }, { status: 500 })
   }
 }

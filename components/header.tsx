@@ -2,278 +2,333 @@
 
 import type React from "react"
 
-import { useState } from "react"
-import Image from "next/image"
+import { useState, useEffect } from "react"
+import { Search, UserIcon, ShoppingCart, ChevronDown, Menu, LogOut } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import {
-  NavigationMenu,
-  NavigationMenuContent,
-  NavigationMenuItem,
-  NavigationMenuList,
-  NavigationMenuTrigger,
-} from "@/components/ui/navigation-menu"
-import { Search, Menu, ShoppingCart, User, Heart, LogOut, Package, UserCircle } from "lucide-react"
-import { useCartStore } from "@/lib/cart-store"
 import { CartSidebar } from "./cart-sidebar"
-import { useSession, signOut } from "next-auth/react"
-import { useRouter } from "next/navigation"
+import { useCartStore } from "@/lib/cart-store"
+import Image from "next/image"
+import Link from "next/link"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 
-const categories = [
-  {
-    name: "Yüz Makyajı",
-    subcategories: ["Fondöten", "Kapatıcı", "Pudra", "Allık", "Bronzer", "Highlighter", "Primer"],
-  },
-  {
-    name: "Göz Makyajı",
-    subcategories: ["Maskara", "Eyeliner", "Göz Farı", "Kaş Ürünleri", "Göz Kalemi", "Takma Kirpik"],
-  },
-  {
-    name: "Dudak Makyajı",
-    subcategories: ["Ruj", "Lip Gloss", "Dudak Kalemi", "Dudak Balmı", "Liquid Lipstick"],
-  },
-  {
-    name: "Cilt Bakımı",
-    subcategories: ["Temizleyici", "Tonik", "Serum", "Nemlendirici", "Güneş Kremi", "Maske", "Peeling"],
-  },
-  {
-    name: "Saç Bakımı",
-    subcategories: ["Şampuan", "Saç Kremi", "Saç Maskesi", "Saç Serumu", "Saç Spreyi"],
-  },
-  {
-    name: "Parfüm",
-    subcategories: ["Kadın Parfümü", "Erkek Parfümü", "Unisex Parfüm", "Deodorant"],
-  },
-]
+interface MenuStructure {
+  [key: string]: string[]
+}
 
 export function Header() {
-  const [isSearchOpen, setIsSearchOpen] = useState(false)
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [isCartOpen, setIsCartOpen] = useState(false)
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
-  const { items } = useCartStore()
-  const { data: session } = useSession()
-  const router = useRouter()
+  const [user, setUser] = useState<{ email: string; name: string; phone?: string } | null>(null)
 
-  const itemCount = items.reduce((total, item) => total + item.quantity, 0)
+  // Zustand store'dan totalItems'ı doğru şekilde al
+  const totalItems = useCartStore((state) => state.totalItems)
+
+  useEffect(() => {
+    // Check if user is logged in
+    const userData = localStorage.getItem("user")
+    if (userData) {
+      setUser(JSON.parse(userData))
+    }
+  }, [])
+
+  // CSV'deki kategorilere göre menü yapısı
+  const menuStructure: MenuStructure = {
+    "Anne & Bebek": ["Bebek Bakım", "Emzik & Biberon", "Anne Bakım", "Bebek Gıda"],
+    "Ağız Bakım": ["Diş Fırçaları", "Diş Macunları", "Ağız Suları", "Diş İpi"],
+    "Cilt Bakımı": ["Yüz Bakımı", "Vücut Bakımı", "Güneş Ürünleri", "Epilasyon", "Nemlendirici", "Temizlik"],
+    "Kişisel Bakım": ["Tırnak Makası / El Bakımı", "Banyo & Vücut", "Hijyen", "Kişisel Temizlik"],
+    "Parfüm & Deodorant": ["Kadın Deodorant Roll-On", "Erkek Deodorant", "Parfüm", "Kolonya"],
+    "Saç Bakımı": ["Şampuan", "Fırçalar / Taraklar", "Saç Kremi", "Saç Maskesi", "Saç Spreyi"],
+    Makyaj: ["Ruj", "Maskara", "Fondöten", "Allık", "Göz Farı", "Kaş Kalemi", "Eyeliner"],
+    "Erkek Bakım": ["Tıraş Ürünleri", "Sakal Bakımı", "Erkek Cilt Bakımı", "After Shave"],
+    "Ev & Temizlik": ["Kolonyalar", "Hijyen Ürünleri", "Temizlik", "Dezenfektan"],
+  }
+
+  const handleCategoryClick = (category: string, subcategory?: string) => {
+    // Kategori filtreleme için event dispatch et - CSV kategorilerine göre
+    const filterEvent = new CustomEvent("categoryFilter", {
+      detail: {
+        category: category,
+        subcategory: subcategory,
+        // CSV'deki kategori alanına göre filtreleme
+        csvCategory: subcategory || category,
+      },
+    })
+    window.dispatchEvent(filterEvent)
+
+    // Mobil menüyü kapat
+    setIsMobileMenuOpen(false)
+  }
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
     if (searchQuery.trim()) {
-      router.push(`/search?q=${encodeURIComponent(searchQuery.trim())}`)
-      setSearchQuery("")
-      setIsSearchOpen(false)
-      setTimeout(() => window.scrollTo(0, 0), 100)
+      // Arama için event dispatch et
+      const searchEvent = new CustomEvent("searchProducts", {
+        detail: { query: searchQuery.trim() },
+      })
+      window.dispatchEvent(searchEvent)
     }
   }
 
-  const handleCategoryClick = (category: string, subcategory?: string) => {
-    const params = new URLSearchParams()
-    params.set("category", category)
-    if (subcategory) {
-      params.set("subcategory", subcategory)
+  const handleSearchInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value)
+
+    // Gerçek zamanlı arama
+    if (e.target.value.trim()) {
+      const searchEvent = new CustomEvent("searchProducts", {
+        detail: { query: e.target.value.trim() },
+      })
+      window.dispatchEvent(searchEvent)
+    } else {
+      // Arama temizlendiğinde tüm ürünleri göster
+      const clearEvent = new CustomEvent("clearSearch")
+      window.dispatchEvent(clearEvent)
     }
-    router.push(`/category?${params.toString()}`)
-    setIsMobileMenuOpen(false)
-    setTimeout(() => window.scrollTo(0, 0), 100)
   }
 
-  const handleSignOut = async () => {
-    await signOut({ redirect: false })
-    router.push("/")
-    setTimeout(() => window.scrollTo(0, 0), 100)
-  }
-
-  const handleLogoClick = () => {
-    router.push("/")
-    window.scrollTo(0, 0)
-  }
-
-  const handleNavClick = (path: string) => {
-    router.push(path)
-    setTimeout(() => window.scrollTo(0, 0), 100)
+  const handleLogout = () => {
+    localStorage.removeItem("user")
+    setUser(null)
+    window.location.reload()
   }
 
   return (
     <>
-      {/* Spacer to prevent content from going under fixed header */}
-      <div className="h-32 sm:h-36"></div>
+      <header className="w-full font-poppins sticky top-0 z-50 bg-white">
+        {/* Top promotional banner */}
+        <div className="bg-gradient-to-r from-rawises-400 to-rawises-600 text-white text-center py-2 text-sm font-medium">
+          500 TL ÜZERİ ÜCRETSİZ KARGO
+        </div>
 
-      <header className="fixed top-0 left-0 right-0 z-50 bg-white shadow-md">
-        <div className="container mx-auto px-4">
-          {/* Top Bar */}
-          <div className="flex items-center justify-between py-3 sm:py-4">
-            {/* Mobile Menu Button */}
-            <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
-              <SheetTrigger asChild>
-                <Button variant="ghost" size="sm" className="md:hidden">
-                  <Menu className="h-5 w-5" />
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="left" className="w-80">
-                <div className="py-4">
-                  <h2 className="text-lg font-semibold mb-4">Kategoriler</h2>
-                  <div className="space-y-4">
-                    {categories.map((category) => (
-                      <div key={category.name}>
-                        <button
-                          onClick={() => handleCategoryClick(category.name)}
-                          className="font-medium text-left w-full py-2 hover:text-rawises-600"
-                        >
-                          {category.name}
-                        </button>
-                        <div className="ml-4 space-y-1">
-                          {category.subcategories.map((sub) => (
-                            <button
-                              key={sub}
-                              onClick={() => handleCategoryClick(category.name, sub)}
-                              className="block text-sm text-gray-600 hover:text-rawises-600 py-1"
-                            >
-                              {sub}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </SheetContent>
-            </Sheet>
-
-            {/* Logo */}
-            <div className="flex-1 md:flex-none flex justify-center md:justify-start">
-              <button onClick={handleLogoClick} className="flex items-center">
-                <Image src="/rawises-logo.png" alt="Rawises" width={120} height={40} className="h-8 sm:h-10 w-auto" />
-              </button>
-            </div>
-
-            {/* Desktop Search */}
-            <div className="hidden md:flex flex-1 max-w-md mx-8">
-              <form onSubmit={handleSearch} className="relative w-full">
-                <Input
-                  type="search"
-                  placeholder="Ürün ara..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pr-10"
-                />
-                <Button type="submit" size="sm" variant="ghost" className="absolute right-0 top-0 h-full px-3">
-                  <Search className="h-4 w-4" />
-                </Button>
-              </form>
-            </div>
-
-            {/* Right Actions */}
-            <div className="flex items-center space-x-2">
-              {/* Mobile Search */}
-              <Sheet open={isSearchOpen} onOpenChange={setIsSearchOpen}>
-                <SheetTrigger asChild>
-                  <Button variant="ghost" size="sm" className="md:hidden">
-                    <Search className="h-5 w-5" />
-                  </Button>
-                </SheetTrigger>
-                <SheetContent side="top" className="h-32">
-                  <form onSubmit={handleSearch} className="relative mt-4">
-                    <Input
-                      type="search"
-                      placeholder="Ürün ara..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="pr-10"
-                      autoFocus
-                    />
-                    <Button type="submit" size="sm" variant="ghost" className="absolute right-0 top-0 h-full px-3">
-                      <Search className="h-4 w-4" />
-                    </Button>
-                  </form>
-                </SheetContent>
-              </Sheet>
-
-              {/* User Menu */}
-              {session ? (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="sm">
-                      <User className="h-5 w-5" />
-                      <span className="hidden sm:ml-2 sm:inline">{session.user?.name || session.user?.email}</span>
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-48">
-                    <DropdownMenuItem onClick={() => handleNavClick("/profile")}>
-                      <UserCircle className="mr-2 h-4 w-4" />
-                      Profilim
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleNavClick("/orders")}>
-                      <Package className="mr-2 h-4 w-4" />
-                      Siparişlerim
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleNavClick("/favorites")}>
-                      <Heart className="mr-2 h-4 w-4" />
-                      Favorilerim
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={handleSignOut}>
-                      <LogOut className="mr-2 h-4 w-4" />
-                      Çıkış Yap
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              ) : (
-                <Button variant="ghost" size="sm" onClick={() => handleNavClick("/login")}>
-                  <User className="h-5 w-5" />
-                  <span className="hidden sm:ml-2 sm:inline">Giriş</span>
-                </Button>
-              )}
-
-              {/* Cart */}
-              <Button variant="ghost" size="sm" className="relative" onClick={() => setIsCartOpen(true)}>
-                <ShoppingCart className="h-5 w-5" />
-                {itemCount > 0 && (
-                  <Badge className="absolute -top-2 -right-2 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs bg-accent-500">
-                    {itemCount}
-                  </Badge>
-                )}
-                <span className="hidden sm:ml-2 sm:inline">Sepet</span>
+        {/* Main header */}
+        <div className="border-b bg-white shadow-sm">
+          <div className="container mx-auto px-4 py-4">
+            <div className="flex items-center justify-between gap-2 lg:gap-4">
+              {/* Mobile menu button */}
+              <Button
+                variant="ghost"
+                size="sm"
+                className="lg:hidden"
+                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              >
+                <Menu className="w-5 h-5" />
               </Button>
-            </div>
-          </div>
 
-          {/* Desktop Navigation */}
-          <div className="hidden md:block border-t border-gray-200">
-            <NavigationMenu className="mx-auto">
-              <NavigationMenuList className="flex space-x-8 py-4">
-                {categories.map((category) => (
-                  <NavigationMenuItem key={category.name}>
-                    <NavigationMenuTrigger
-                      className="text-sm font-medium hover:text-rawises-600"
-                      onClick={() => handleCategoryClick(category.name)}
-                    >
-                      {category.name}
-                    </NavigationMenuTrigger>
-                    <NavigationMenuContent>
-                      <div className="grid w-80 gap-3 p-4">
-                        {category.subcategories.map((subcategory) => (
-                          <button
-                            key={subcategory}
-                            onClick={() => handleCategoryClick(category.name, subcategory)}
-                            className="block text-left text-sm hover:text-rawises-600 py-2 px-3 rounded hover:bg-gray-50"
-                          >
-                            {subcategory}
-                          </button>
-                        ))}
-                      </div>
-                    </NavigationMenuContent>
-                  </NavigationMenuItem>
-                ))}
-              </NavigationMenuList>
-            </NavigationMenu>
+              {/* Logo */}
+              <Link href="/" className="flex-shrink-0">
+                <Image
+                  src="/rawises-logo.png"
+                  alt="Rawises"
+                  width={100}
+                  height={32}
+                  className="h-8 w-auto lg:h-10"
+                  priority
+                />
+              </Link>
+
+              {/* Search bar - hidden on mobile */}
+              <div className="hidden md:flex flex-1 max-w-md mx-4">
+                <form onSubmit={handleSearch} className="relative w-full">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <Input
+                    placeholder="Ürün, marka arayın..."
+                    value={searchQuery}
+                    onChange={handleSearchInputChange}
+                    className="pl-10 pr-12 py-2 w-full border-rawises-200 focus:border-rawises-500 focus:ring-rawises-500"
+                  />
+                  <Button
+                    type="submit"
+                    size="sm"
+                    className="absolute right-1 top-1/2 transform -translate-y-1/2 bg-rawises-600 hover:bg-rawises-700 h-8"
+                  >
+                    <Search className="w-4 h-4" />
+                  </Button>
+                </form>
+              </div>
+
+              {/* User actions */}
+              <div className="flex items-center gap-1 lg:gap-2">
+                {user ? (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="sm" className="hover:bg-rawises-50 hover:text-rawises-700">
+                        <UserIcon className="w-4 h-4 mr-1 lg:mr-2" />
+                        <span className="hidden lg:inline">{user.name.split(" ")[0]}</span>
+                        <ChevronDown className="w-3 h-3 ml-1" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-56">
+                      <DropdownMenuItem className="flex flex-col items-start">
+                        <span className="font-medium">{user.name}</span>
+                        <span className="text-xs text-gray-500">{user.email}</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem>
+                        <UserIcon className="w-4 h-4 mr-2" />
+                        Hesabım
+                      </DropdownMenuItem>
+                      <DropdownMenuItem>
+                        <ShoppingCart className="w-4 h-4 mr-2" />
+                        Siparişlerim
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={handleLogout} className="text-red-600">
+                        <LogOut className="w-4 h-4 mr-2" />
+                        Çıkış Yap
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                ) : (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="sm" className="hover:bg-rawises-50 hover:text-rawises-700">
+                        <UserIcon className="w-4 h-4 mr-1 lg:mr-2" />
+                        <span className="hidden lg:inline">Hesap</span>
+                        <ChevronDown className="w-3 h-3 ml-1" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-56">
+                      <DropdownMenuItem asChild>
+                        <Link href="/auth/login">
+                          <UserIcon className="w-4 h-4 mr-2" />
+                          Giriş Yap
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link href="/auth/register">
+                          <UserIcon className="w-4 h-4 mr-2" />
+                          Üye Ol
+                        </Link>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="relative hover:bg-rawises-50 hover:text-rawises-700"
+                  onClick={() => setIsCartOpen(true)}
+                >
+                  <ShoppingCart className="w-4 h-4 mr-1 lg:mr-2" />
+                  <span className="hidden sm:inline">Sepet</span>
+                  {totalItems > 0 && (
+                    <Badge className="absolute -top-1 -right-1 bg-brand-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center p-0">
+                      {totalItems}
+                    </Badge>
+                  )}
+                </Button>
+              </div>
+            </div>
           </div>
         </div>
 
-        <CartSidebar isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
+        {/* Mobile search bar */}
+        <div className="md:hidden border-t bg-white">
+          <div className="container mx-auto px-4 py-3">
+            <form onSubmit={handleSearch} className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <Input
+                placeholder="Ürün, marka arayın..."
+                value={searchQuery}
+                onChange={handleSearchInputChange}
+                className="pl-10 pr-12 py-2 w-full border-rawises-200 focus:border-rawises-500 focus:ring-rawises-500"
+              />
+              <Button
+                type="submit"
+                size="sm"
+                className="absolute right-1 top-1/2 transform -translate-y-1/2 bg-rawises-600 hover:bg-rawises-700 h-8"
+              >
+                <Search className="w-4 h-4" />
+              </Button>
+            </form>
+          </div>
+        </div>
+
+        {/* Navigation menu */}
+        <div className="bg-white border-b relative z-40">
+          <div className="container mx-auto px-4">
+            {/* Desktop navigation */}
+            <div className="hidden lg:flex justify-between items-center py-2">
+              {Object.keys(menuStructure).map((mainCategory) => (
+                <DropdownMenu key={mainCategory}>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      className="text-xs xl:text-sm font-medium hover:text-rawises-600 data-[state=open]:text-rawises-600 flex items-center gap-1 px-2 xl:px-3 focus:outline-none focus:ring-0 focus:border-none"
+                    >
+                      <span className="truncate">{mainCategory}</span>
+                      <ChevronDown className="w-3 h-3 flex-shrink-0" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="w-56">
+                    <DropdownMenuItem
+                      className="hover:bg-rawises-50 hover:text-rawises-700 font-medium focus:outline-none focus:ring-0 cursor-pointer"
+                      onClick={() => handleCategoryClick(mainCategory)}
+                    >
+                      Tüm {mainCategory}
+                    </DropdownMenuItem>
+                    {menuStructure[mainCategory].map((subCategory) => (
+                      <DropdownMenuItem
+                        key={subCategory}
+                        className="hover:bg-rawises-50 hover:text-rawises-700 focus:outline-none focus:ring-0 cursor-pointer"
+                        onClick={() => handleCategoryClick(mainCategory, subCategory)}
+                      >
+                        {subCategory}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ))}
+            </div>
+
+            {/* Mobile navigation */}
+            {isMobileMenuOpen && (
+              <div className="lg:hidden border-t bg-white relative z-30">
+                <div className="py-4 space-y-3 max-h-96 overflow-y-auto">
+                  {!user && (
+                    <div className="border-b border-gray-100 pb-3 mb-3">
+                      <Link href="/auth/login">
+                        <Button variant="ghost" className="w-full justify-start text-rawises-700">
+                          <UserIcon className="w-4 h-4 mr-2" />
+                          Giriş Yap / Üye Ol
+                        </Button>
+                      </Link>
+                    </div>
+                  )}
+                  {Object.keys(menuStructure).map((mainCategory) => (
+                    <div key={mainCategory} className="border-b border-gray-100 pb-3">
+                      <Button
+                        variant="ghost"
+                        className="font-medium text-rawises-700 mb-2 px-2 w-full justify-start"
+                        onClick={() => handleCategoryClick(mainCategory)}
+                      >
+                        {mainCategory}
+                      </Button>
+                      <div className="grid grid-cols-1 gap-1 pl-4">
+                        {menuStructure[mainCategory].map((subCategory) => (
+                          <Button
+                            key={subCategory}
+                            variant="ghost"
+                            size="sm"
+                            className="justify-start text-xs hover:bg-rawises-50 hover:text-rawises-700"
+                            onClick={() => handleCategoryClick(mainCategory, subCategory)}
+                          >
+                            {subCategory}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
       </header>
+
+      <CartSidebar isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
     </>
   )
 }

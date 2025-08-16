@@ -1,27 +1,24 @@
 "use client"
 
-import type React from "react"
-
 import { useState, useEffect } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Heart, ShoppingCart, Check, ImageIcon } from "lucide-react"
+import { Heart, ShoppingCart, Check, Filter, X, Grid3X3, List, Star } from "lucide-react"
 import Image from "next/image"
-import Link from "next/link"
-import { stripHtmlTags, type Product } from "@/lib/csv-parser"
+import { stripHtmlTags, calculateDiscountPercentage, type Product } from "@/lib/csv-parser"
 import { useCartStore } from "@/lib/cart-store"
-import { useSession } from "next-auth/react"
-import { useRouter } from "next/navigation"
+import Link from "next/link"
 
 export function ProductGrid() {
   const [products, setProducts] = useState<Product[]>([])
+  const [filteredProducts, setFilteredProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [addedItems, setAddedItems] = useState<Set<string>>(new Set())
-  const [imageErrors, setImageErrors] = useState<Set<string>>(new Set())
+  const [activeFilter, setActiveFilter] = useState<{ category?: string; subcategory?: string } | null>(null)
+  const [searchQuery, setSearchQuery] = useState("")
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
   const { addItem } = useCartStore()
-  const { data: session } = useSession()
-  const router = useRouter()
 
   useEffect(() => {
     const loadProducts = async () => {
@@ -30,12 +27,12 @@ export function ProductGrid() {
         const data = await response.json()
 
         if (data.products) {
-          // Filter out products that are out of stock
-          const inStockProducts = data.products.filter((product: Product) => {
-            const totalStock = calculateTotalStock(product)
-            return totalStock > 0
-          })
-          setProducts(inStockProducts)
+          // 0 TL olmayan ürünleri filtrele
+          const validProducts = data.products.filter(
+            (product: Product) => product.discountPrice > 0 && product.salePrice > 0,
+          )
+          setProducts(validProducts)
+          setFilteredProducts(validProducts.slice(0, 12))
         }
         setLoading(false)
       } catch (error) {
@@ -47,91 +44,183 @@ export function ProductGrid() {
     loadProducts()
   }, [])
 
-  const calculateTotalStock = (product: Product): number => {
-    const adanaStock = Number.parseInt(product.stockAdana?.toString() || "0")
-    const anaDepoStock = Number.parseInt(
-      product.stockMainWarehouse?.toString() || product.stockAnaDepo?.toString() || "0",
-    )
-    return adanaStock + anaDepoStock
-  }
+  useEffect(() => {
+    const handleCategoryFilter = (event: CustomEvent) => {
+      const { category, subcategory, csvCategory } = event.detail
+      setActiveFilter({ category, subcategory })
+      setSearchQuery("")
 
-  const handleAddToCart = (e: React.MouseEvent, product: Product) => {
-    e.preventDefault()
-    e.stopPropagation()
+      // CSV kategorilerine göre gelişmiş filtreleme
+      const filtered = products.filter((product) => {
+        const searchTerm = csvCategory || subcategory || category
 
-    const totalStock = calculateTotalStock(product)
-    if (totalStock > 0) {
-      addItem(product)
-      setAddedItems((prev) => new Set(prev).add(product.id))
+        // CSV'deki "Kategoriler" alanında arama yap
+        const categoryMatch = product.categories.toLowerCase().includes(searchTerm.toLowerCase())
 
-      setTimeout(() => {
-        setAddedItems((prev) => {
-          const newSet = new Set(prev)
-          newSet.delete(product.id)
-          return newSet
-        })
-      }, 2000)
-    }
-  }
+        // Ürün adında arama yap
+        const nameMatch = product.name.toLowerCase().includes(searchTerm.toLowerCase())
 
-  const handleImageError = (productId: string) => {
-    setImageErrors((prev) => new Set(prev).add(productId))
-  }
+        // Marka alanında arama yap
+        const brandMatch = product.brand.toLowerCase().includes(searchTerm.toLowerCase())
 
-  const getProductUrl = (product: Product) => {
-    const identifier = product.slug || product.id || product.variantId
-    return `/product/${identifier}`
-  }
+        // Etiketler alanında arama yap
+        const tagMatch = product.tags.toLowerCase().includes(searchTerm.toLowerCase())
 
-  const handleAddToFavorites = async (e: React.MouseEvent, product: Product) => {
-    e.preventDefault()
-    e.stopPropagation()
+        // Açıklama alanında arama yap
+        const descriptionMatch = stripHtmlTags(product.description).toLowerCase().includes(searchTerm.toLowerCase())
 
-    if (!session) {
-      router.push("/login")
-      return
-    }
+        // Özel kategori eşleştirmeleri
+        let specialMatch = false
 
-    try {
-      const response = await fetch("/api/user/favorites", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          productId: product.id,
-          name: product.name,
-          image: product.imageUrl,
-          price: product.discountPrice.toString(),
-          brand: product.brand,
-        }),
+        // Makyaj kategorisi için özel eşleştirmeler
+        if (
+          searchTerm.toLowerCase().includes("makyaj") ||
+          searchTerm.toLowerCase().includes("ruj") ||
+          searchTerm.toLowerCase().includes("maskara") ||
+          searchTerm.toLowerCase().includes("fondöten")
+        ) {
+          specialMatch =
+            product.categories.toLowerCase().includes("makyaj") ||
+            product.categories.toLowerCase().includes("kozmetik") ||
+            product.name.toLowerCase().includes("ruj") ||
+            product.name.toLowerCase().includes("maskara") ||
+            product.name.toLowerCase().includes("fondöten")
+        }
+
+        // Cilt bakımı için özel eşleştirmeler
+        if (searchTerm.toLowerCase().includes("cilt") || searchTerm.toLowerCase().includes("bakım")) {
+          specialMatch =
+            product.categories.toLowerCase().includes("cilt") ||
+            product.categories.toLowerCase().includes("bakım") ||
+            product.name.toLowerCase().includes("krem") ||
+            product.name.toLowerCase().includes("serum")
+        }
+
+        // Saç bakımı için özel eşleştirmeler
+        if (searchTerm.toLowerCase().includes("saç") || searchTerm.toLowerCase().includes("şampuan")) {
+          specialMatch =
+            product.categories.toLowerCase().includes("saç") ||
+            product.name.toLowerCase().includes("şampuan") ||
+            product.name.toLowerCase().includes("saç")
+        }
+
+        return categoryMatch || nameMatch || brandMatch || tagMatch || descriptionMatch || specialMatch
       })
 
-      if (response.ok) {
-        const data = await response.json()
-        console.log(data.message)
-      }
-    } catch (error) {
-      console.error("Error updating favorites:", error)
+      console.log(`Filtering for: ${category}, Found: ${filtered.length} products`)
+      setFilteredProducts(filtered.slice(0, 24))
     }
+
+    const handleSearch = (event: CustomEvent) => {
+      const { query } = event.detail
+      setSearchQuery(query)
+      setActiveFilter(null)
+
+      if (!query.trim()) {
+        setFilteredProducts(products.slice(0, 12))
+        return
+      }
+
+      // Gelişmiş arama algoritması
+      const searchTerms = query
+        .toLowerCase()
+        .split(" ")
+        .filter((term) => term.length > 0)
+
+      const filtered = products.filter((product) => {
+        const searchableText = [
+          product.name,
+          product.brand,
+          product.categories,
+          product.tags,
+          stripHtmlTags(product.description),
+        ]
+          .join(" ")
+          .toLowerCase()
+
+        // Tüm arama terimlerinin en az birinin eşleşmesi gerekiyor
+        return searchTerms.some((term) => searchableText.includes(term))
+      })
+
+      // Relevance scoring - daha iyi eşleşmeleri üstte göster
+      const scoredResults = filtered.map((product) => {
+        let score = 0
+        const productName = product.name.toLowerCase()
+        const productBrand = product.brand.toLowerCase()
+
+        searchTerms.forEach((term) => {
+          if (productName.includes(term)) score += 10
+          if (productBrand.includes(term)) score += 8
+          if (product.categories.toLowerCase().includes(term)) score += 5
+          if (product.tags.toLowerCase().includes(term)) score += 3
+        })
+
+        return { product, score }
+      })
+
+      // Score'a göre sırala ve ürünleri al
+      const sortedResults = scoredResults.sort((a, b) => b.score - a.score).map((item) => item.product)
+
+      setFilteredProducts(sortedResults.slice(0, 24))
+    }
+
+    const handleClearSearch = () => {
+      setSearchQuery("")
+      setActiveFilter(null)
+      setFilteredProducts(products.slice(0, 12))
+    }
+
+    window.addEventListener("categoryFilter", handleCategoryFilter as EventListener)
+    window.addEventListener("searchProducts", handleSearch as EventListener)
+    window.addEventListener("clearSearch", handleClearSearch as EventListener)
+
+    return () => {
+      window.removeEventListener("categoryFilter", handleCategoryFilter as EventListener)
+      window.removeEventListener("searchProducts", handleSearch as EventListener)
+      window.removeEventListener("clearSearch", handleClearSearch as EventListener)
+    }
+  }, [products])
+
+  const handleAddToCart = (product: Product) => {
+    addItem(product)
+    setAddedItems((prev) => new Set(prev).add(product.id))
+
+    setTimeout(() => {
+      setAddedItems((prev) => {
+        const newSet = new Set(prev)
+        newSet.delete(product.id)
+        return newSet
+      })
+    }, 2000)
   }
 
-  const formatPrice = (price: number): string => {
-    return new Intl.NumberFormat("tr-TR", {
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 2,
-    }).format(price)
+  const clearFilter = () => {
+    setActiveFilter(null)
+    setSearchQuery("")
+    setFilteredProducts(products.slice(0, 12))
+  }
+
+  const createProductSlug = (product: Product) => {
+    return (
+      product.slug ||
+      product.name
+        .toLowerCase()
+        .replace(/[^a-z0-9\s-]/g, "")
+        .replace(/\s+/g, "-")
+        .replace(/-+/g, "-")
+        .trim()
+    )
   }
 
   if (loading) {
     return (
-      <section className="py-8 sm:py-12">
+      <section className="py-12">
         <div className="container mx-auto px-4">
-          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
+          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
             {[...Array(8)].map((_, i) => (
-              <Card key={i} className="animate-pulse rounded-2xl">
-                <div className="aspect-square bg-gray-200 rounded-t-2xl"></div>
-                <CardContent className="p-4">
+              <Card key={i} className="animate-pulse">
+                <div className="relative aspect-square bg-gray-200 rounded-t-lg"></div>
+                <CardContent className="p-2 sm:p-3 lg:p-4">
                   <div className="h-4 bg-gray-200 rounded mb-2"></div>
                   <div className="h-3 bg-gray-200 rounded mb-4"></div>
                   <div className="h-6 bg-gray-200 rounded"></div>
@@ -145,117 +234,308 @@ export function ProductGrid() {
   }
 
   return (
-    <section className="py-8 sm:py-12">
+    <section className="py-12">
       <div className="container mx-auto px-4">
-        <div className="mb-6 sm:mb-8">
-          <h2 className="text-xl sm:text-2xl font-bold text-center mb-2 text-rawises-800">Öne Çıkan Ürünler</h2>
-          <p className="text-rawises-600 text-center text-sm sm:text-base">En popüler makyaj ürünleri</p>
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-2xl font-bold text-rawises-800">
+                {activeFilter
+                  ? `${activeFilter.subcategory || activeFilter.category} Ürünleri`
+                  : searchQuery
+                    ? `"${searchQuery}" Arama Sonuçları`
+                    : "Öne Çıkan Ürünler"}
+              </h2>
+              <p className="text-rawises-600">
+                {activeFilter || searchQuery ? `${filteredProducts.length} ürün bulundu` : "En popüler makyaj ürünleri"}
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2">
+              {/* View Mode Toggle */}
+              <div className="flex items-center border border-rawises-200 rounded-lg p-1">
+                <Button
+                  variant={viewMode === "grid" ? "default" : "ghost"}
+                  size="sm"
+                  onClick={() => setViewMode("grid")}
+                  className={`p-2 ${
+                    viewMode === "grid" ? "bg-rawises-600 text-white" : "text-rawises-600 hover:bg-rawises-50"
+                  }`}
+                >
+                  <Grid3X3 className="w-4 h-4" />
+                </Button>
+                <Button
+                  variant={viewMode === "list" ? "default" : "ghost"}
+                  size="sm"
+                  onClick={() => setViewMode("list")}
+                  className={`p-2 ${
+                    viewMode === "list" ? "bg-rawises-600 text-white" : "text-rawises-600 hover:bg-rawises-50"
+                  }`}
+                >
+                  <List className="w-4 h-4" />
+                </Button>
+              </div>
+
+              {(activeFilter || searchQuery) && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={clearFilter}
+                  className="flex items-center gap-2 border-rawises-300 text-rawises-700 hover:bg-rawises-50 bg-transparent"
+                >
+                  <X className="w-4 h-4" />
+                  Temizle
+                </Button>
+              )}
+            </div>
+          </div>
+
+          {(activeFilter || searchQuery) && (
+            <div className="flex items-center gap-2 mb-4">
+              <Filter className="w-4 h-4 text-rawises-600" />
+              <Badge variant="secondary" className="bg-rawises-100 text-rawises-800">
+                {searchQuery
+                  ? `Arama: ${searchQuery}`
+                  : `${activeFilter?.category}${activeFilter?.subcategory ? ` > ${activeFilter.subcategory}` : ""}`}
+              </Badge>
+            </div>
+          )}
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
-          {products.map((product) => {
-            const isAdded = addedItems.has(product.id)
-            const hasImageError = imageErrors.has(product.id)
-            const productUrl = getProductUrl(product)
-            const totalStock = calculateTotalStock(product)
+        {/* Grid View */}
+        {viewMode === "grid" && (
+          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
+            {filteredProducts.map((product) => {
+              const isAdded = addedItems.has(product.id)
+              const productSlug = createProductSlug(product)
 
-            return (
-              <Card
-                key={product.id}
-                className="group hover:shadow-xl transition-all duration-300 border-0 rounded-2xl bg-white shadow-sm hover:shadow-2xl flex flex-col h-full overflow-hidden"
-              >
-                <Link href={productUrl} className="flex flex-col h-full">
-                  <div className="relative w-full h-48 sm:h-56 overflow-hidden bg-gray-50 flex items-center justify-center p-4">
-                    {!hasImageError && product.imageUrl ? (
+              return (
+                <Card
+                  key={product.id}
+                  className="group hover:shadow-lg transition-all duration-300 border-rawises-100 hover:border-rawises-300 flex flex-col h-full"
+                >
+                  <Link href={`/product/${product.id}/${productSlug}`} className="block">
+                    <div className="relative aspect-square overflow-hidden rounded-t-lg">
                       <Image
                         src={product.imageUrl || "/placeholder.svg"}
                         alt={product.name}
-                        width={200}
-                        height={200}
-                        className="object-contain group-hover:scale-105 transition-transform duration-300 max-w-full max-h-full"
-                        onError={() => handleImageError(product.id)}
-                        unoptimized
+                        fill
+                        className="object-cover group-hover:scale-105 transition-transform duration-300"
                         crossOrigin="anonymous"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement
+                          target.src = "/placeholder.svg?height=300&width=300"
+                        }}
                       />
-                    ) : (
-                      <div className="flex flex-col items-center justify-center text-gray-400 p-4">
-                        <ImageIcon className="w-12 h-12 mb-2" />
-                        <span className="text-xs text-center">Görsel Yok</span>
+                      <div className="absolute top-1 sm:top-2 left-1 sm:left-2">
+                        <Badge variant="destructive" className="bg-accent-500 hover:bg-accent-600 text-xs px-1 sm:px-2">
+                          %{calculateDiscountPercentage(product.salePrice, product.discountPrice)}
+                        </Badge>
                       </div>
-                    )}
-
-                    {/* Heart Icon - Top Right */}
-                    <div className="absolute top-3 right-3">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="bg-white/90 hover:bg-white text-gray-400 hover:text-teal-500 p-2 h-8 w-8 rounded-full shadow-sm"
-                        onClick={(e) => handleAddToFavorites(e, product)}
-                      >
-                        <Heart className="w-4 h-4" />
-                      </Button>
+                      <div className="absolute top-1 sm:top-2 right-1 sm:right-2">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="bg-white/80 hover:bg-white text-rawises-600 hover:text-brand-500 h-6 w-6 sm:h-8 sm:w-8 p-0"
+                          onClick={(e) => e.preventDefault()}
+                        >
+                          <Heart className="w-3 h-3 sm:w-4 sm:h-4" />
+                        </Button>
+                      </div>
                     </div>
-                  </div>
+                  </Link>
 
-                  <CardContent className="p-4 flex flex-col flex-grow">
-                    {/* Brand Badge */}
-                    <div className="mb-3">
-                      <Badge
-                        variant="secondary"
-                        className="bg-teal-100 text-teal-700 hover:bg-teal-200 text-xs px-3 py-1 rounded-full font-medium"
-                      >
+                  <CardContent className="p-2 sm:p-3 lg:p-4 flex flex-col flex-grow">
+                    <div className="mb-1 sm:mb-2">
+                      <Badge variant="outline" className="text-xs border-rawises-200 text-rawises-700 px-1 sm:px-2">
                         {product.brand}
                       </Badge>
                     </div>
 
-                    {/* Product Title */}
-                    <h3 className="font-bold text-gray-900 text-sm sm:text-base mb-2 line-clamp-2 flex-grow leading-tight">
-                      {product.name}
-                    </h3>
+                    <Link href={`/product/${product.id}/${productSlug}`}>
+                      <h3 className="font-semibold text-xs sm:text-sm mb-1 sm:mb-2 line-clamp-2 text-rawises-800 flex-grow leading-tight hover:text-rawises-600 transition-colors">
+                        {product.name}
+                      </h3>
+                    </Link>
 
-                    {/* Product Description */}
-                    <p className="text-xs text-teal-600 mb-4 line-clamp-2 leading-relaxed">
-                      {stripHtmlTags(product.description).substring(0, 60)}...
+                    <p className="text-xs text-rawises-600 mb-2 sm:mb-3 line-clamp-1 hidden sm:block">
+                      {stripHtmlTags(product.description).substring(0, 40)}...
                     </p>
 
-                    {/* Price Section */}
-                    <div className="mb-4">
-                      <div className="text-sm text-gray-400 line-through mb-1">{formatPrice(product.salePrice)} TL</div>
-                      <div className="text-xl font-bold text-teal-600">{formatPrice(product.discountPrice)} TL</div>
+                    <div className="flex items-center justify-between mb-2 sm:mb-3">
+                      <div>
+                        <span className="text-xs line-through text-gray-400 block sm:inline">
+                          {product.salePrice} TL
+                        </span>
+                        <div className="text-sm sm:text-base lg:text-lg font-bold bg-gradient-to-r from-rawises-600 to-brand-500 bg-clip-text text-transparent">
+                          {product.discountPrice} TL
+                        </div>
+                      </div>
                     </div>
 
-                    {/* Stock Info */}
-                    <div className="text-xs text-green-600 mb-3">{totalStock} adet stokta</div>
-
-                    {/* Add to Cart Button */}
                     <div className="mt-auto">
                       <Button
-                        className={`w-full transition-all duration-300 text-sm py-3 rounded-xl font-medium ${
+                        className={`w-full transition-all duration-300 text-xs sm:text-sm py-1 sm:py-2 ${
                           isAdded
-                            ? "bg-green-500 hover:bg-green-600 text-white"
-                            : "bg-gradient-to-r from-teal-500 to-purple-500 hover:from-teal-600 hover:to-purple-600 text-white shadow-lg hover:shadow-xl"
+                            ? "bg-accent-600 hover:bg-accent-700"
+                            : "bg-gradient-to-r from-rawises-600 to-brand-500 hover:from-rawises-700 hover:to-brand-600"
                         }`}
-                        onClick={(e) => handleAddToCart(e, product)}
+                        size="sm"
+                        onClick={() => handleAddToCart(product)}
                       >
                         {isAdded ? (
                           <>
-                            <Check className="w-4 h-4 mr-2" />
-                            Sepete Eklendi
+                            <Check className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+                            <span className="hidden sm:inline">Sepete Eklendi</span>
+                            <span className="sm:hidden">Eklendi</span>
                           </>
                         ) : (
                           <>
-                            <ShoppingCart className="w-4 h-4 mr-2" />
-                            Sepete Ekle
+                            <ShoppingCart className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+                            <span className="hidden sm:inline">Sepete Ekle</span>
+                            <span className="sm:hidden">Ekle</span>
                           </>
                         )}
                       </Button>
                     </div>
                   </CardContent>
-                </Link>
-              </Card>
-            )
-          })}
-        </div>
+                </Card>
+              )
+            })}
+          </div>
+        )}
+
+        {/* List View */}
+        {viewMode === "list" && (
+          <div className="space-y-4">
+            {filteredProducts.map((product) => {
+              const isAdded = addedItems.has(product.id)
+              const productSlug = createProductSlug(product)
+
+              return (
+                <Card
+                  key={product.id}
+                  className="group hover:shadow-lg transition-all duration-300 border-rawises-100 hover:border-rawises-300"
+                >
+                  <CardContent className="p-4">
+                    <div className="flex gap-4">
+                      <Link href={`/product/${product.id}/${productSlug}`} className="flex-shrink-0">
+                        <div className="relative w-24 h-24 sm:w-32 sm:h-32">
+                          <Image
+                            src={product.imageUrl || "/placeholder.svg"}
+                            alt={product.name}
+                            fill
+                            className="object-cover rounded-lg group-hover:scale-105 transition-transform duration-300"
+                            crossOrigin="anonymous"
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement
+                              target.src = "/placeholder.svg?height=128&width=128"
+                            }}
+                          />
+                          <div className="absolute top-1 left-1">
+                            <Badge variant="destructive" className="bg-accent-500 text-xs px-1">
+                              %{calculateDiscountPercentage(product.salePrice, product.discountPrice)}
+                            </Badge>
+                          </div>
+                        </div>
+                      </Link>
+
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between mb-2">
+                          <div className="flex-1">
+                            <Badge variant="outline" className="text-xs border-rawises-200 text-rawises-700 mb-2">
+                              {product.brand}
+                            </Badge>
+                            <Link href={`/product/${product.id}/${productSlug}`}>
+                              <h3 className="font-semibold text-sm sm:text-base text-rawises-800 mb-2 line-clamp-2 hover:text-rawises-600 transition-colors">
+                                {product.name}
+                              </h3>
+                            </Link>
+                            <p className="text-xs sm:text-sm text-rawises-600 mb-3 line-clamp-2">
+                              {stripHtmlTags(product.description).substring(0, 120)}...
+                            </p>
+                          </div>
+                          <Button size="sm" variant="ghost" className="text-rawises-600 hover:text-brand-500 ml-2">
+                            <Heart className="w-4 h-4" />
+                          </Button>
+                        </div>
+
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-4">
+                            <div>
+                              <span className="text-sm line-through text-gray-400 block">{product.salePrice} TL</span>
+                              <div className="text-lg font-bold bg-gradient-to-r from-rawises-600 to-brand-500 bg-clip-text text-transparent">
+                                {product.discountPrice} TL
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                              <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                              <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                              <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                              <Star className="w-4 h-4 text-gray-300" />
+                              <span className="text-xs text-gray-500 ml-1">(4.2)</span>
+                            </div>
+                          </div>
+
+                          <Button
+                            className={`transition-all duration-300 ${
+                              isAdded
+                                ? "bg-accent-600 hover:bg-accent-700"
+                                : "bg-gradient-to-r from-rawises-600 to-brand-500 hover:from-rawises-700 hover:to-brand-600"
+                            }`}
+                            onClick={() => handleAddToCart(product)}
+                          >
+                            {isAdded ? (
+                              <>
+                                <Check className="w-4 h-4 mr-2" />
+                                Sepete Eklendi
+                              </>
+                            ) : (
+                              <>
+                                <ShoppingCart className="w-4 h-4 mr-2" />
+                                Sepete Ekle
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )
+            })}
+          </div>
+        )}
+
+        {filteredProducts.length === 0 && !loading && (
+          <div className="text-center py-12">
+            <div className="text-gray-400 mb-4">
+              <Filter className="w-16 h-16 mx-auto mb-4" />
+            </div>
+            <h3 className="text-lg font-semibold text-gray-600 mb-2">Ürün Bulunamadı</h3>
+            <p className="text-gray-500 mb-4">
+              {searchQuery
+                ? `"${searchQuery}" araması için sonuç bulunamadı.`
+                : `${activeFilter?.subcategory || activeFilter?.category} kategorisinde ürün bulunamadı.`}
+            </p>
+            <Button onClick={clearFilter} className="bg-rawises-600 hover:bg-rawises-700">
+              Tüm Ürünleri Gör
+            </Button>
+          </div>
+        )}
+
+        {filteredProducts.length > 0 && (
+          <div className="text-center mt-8">
+            <Button
+              variant="outline"
+              size="lg"
+              className="border-rawises-300 text-rawises-700 hover:bg-rawises-50 bg-transparent"
+            >
+              Daha Fazla Ürün Gör
+            </Button>
+          </div>
+        )}
       </div>
     </section>
   )
