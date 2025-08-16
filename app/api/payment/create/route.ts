@@ -2,12 +2,12 @@ import { type NextRequest, NextResponse } from "next/server"
 import crypto from "crypto"
 
 function generateSipayHash(data: any): string {
-  const merchantKey = process.env.SIPAY_MERCHANT_KEY!
+  const appSecret = process.env.SIPAY_APP_SECRET!
 
-  // Standard Turkish payment gateway hash format
-  const hashString = `${data.merchant_id}${data.merchant_oid}${data.email}${data.payment_amount}${data.user_basket}${data.no_installment}${data.max_installment}${data.user_name}${data.user_address}${data.user_phone}${merchantKey}`
+  // Sipay hash format: app_id + merchant_id + invoice_id + currency_code + total + app_secret
+  const hashString = `${data.app_id}${data.merchant_id}${data.invoice_id}${data.currency_code}${data.total}${appSecret}`
 
-  console.log("[v0] Hash string:", hashString)
+  console.log("[v0] Sipay hash string:", hashString)
   return crypto.createHash("sha256").update(hashString).digest("hex")
 }
 
@@ -15,12 +15,14 @@ export async function POST(request: NextRequest) {
   try {
     console.log("[v0] Environment variables check:")
     console.log("[v0] SIPAY_MERCHANT_ID:", process.env.SIPAY_MERCHANT_ID ? "SET" : "UNDEFINED")
-    console.log("[v0] SIPAY_MERCHANT_KEY:", process.env.SIPAY_MERCHANT_KEY ? "SET" : "UNDEFINED")
+    console.log("[v0] SIPAY_APP_KEY:", process.env.SIPAY_APP_KEY ? "SET" : "UNDEFINED")
+    console.log("[v0] SIPAY_APP_SECRET:", process.env.SIPAY_APP_SECRET ? "SET" : "UNDEFINED")
     console.log("[v0] SIPAY_BASE_URL:", process.env.SIPAY_BASE_URL ? process.env.SIPAY_BASE_URL : "UNDEFINED")
 
     const requiredEnvVars = {
       SIPAY_MERCHANT_ID: process.env.SIPAY_MERCHANT_ID,
-      SIPAY_MERCHANT_KEY: process.env.SIPAY_MERCHANT_KEY,
+      SIPAY_APP_KEY: process.env.SIPAY_APP_KEY,
+      SIPAY_APP_SECRET: process.env.SIPAY_APP_SECRET,
       SIPAY_BASE_URL: process.env.SIPAY_BASE_URL,
     }
 
@@ -56,50 +58,41 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const userBasket = items
-      .map((item: any, index: number) => `${item.name},${(item.price * item.quantity).toFixed(2)},${item.quantity}`)
-      .join(";")
-
     const sipayPaymentData = {
+      app_id: process.env.SIPAY_APP_KEY,
       merchant_id: process.env.SIPAY_MERCHANT_ID,
-      merchant_oid: orderId,
+      invoice_id: orderId,
+      currency_code: "TRY",
+      total: (amount * 100).toString(), // Amount in kuruş
+      name: userName,
       email: email,
-      payment_amount: (amount * 100).toString(), // Amount in kuruş
-      currency: "TL",
-      user_name: userName,
-      user_address: userAddress || userName,
-      user_phone: userPhone,
-      merchant_ok_url: `${baseUrl}/payment/success`,
-      merchant_fail_url: `${baseUrl}/payment/failed`,
-      user_basket: Buffer.from(userBasket).toString("base64"),
-      debug_on: "0",
-      test_mode: "0",
-      no_installment: "0",
-      max_installment: "0",
-      lang: "tr",
-      timeout_limit: "30",
+      phone: userPhone,
+      address: userAddress || userName,
+      return_url: `${baseUrl}/payment/return`,
+      cancel_url: `${baseUrl}/payment/failed`,
+      items: items.map((item: any) => ({
+        name: item.name,
+        price: (item.price * 100).toString(),
+        quantity: item.quantity.toString(),
+      })),
     }
 
-    const paytrToken = generateSipayHash(sipayPaymentData)
-    sipayPaymentData.paytr_token = paytrToken
+    const sipayHash = generateSipayHash(sipayPaymentData)
+    sipayPaymentData.hash = sipayHash
 
-    console.log("[v0] Generated hash:", paytrToken)
+    console.log("[v0] Generated Sipay hash:", sipayHash)
     console.log("[v0] Sending payment data to Sipay:", sipayPaymentData)
 
-    const sipayUrl = process.env.SIPAY_BASE_URL!
+    const sipayUrl = `${process.env.SIPAY_BASE_URL}/api/payment`
     console.log("[v0] Sipay URL:", sipayUrl)
-
-    const formData = new URLSearchParams()
-    Object.entries(sipayPaymentData).forEach(([key, value]) => {
-      formData.append(key, value as string)
-    })
 
     const sipayResponse = await fetch(sipayUrl, {
       method: "POST",
       headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
+        "Content-Type": "application/json",
+        Accept: "application/json",
       },
-      body: formData.toString(),
+      body: JSON.stringify(sipayPaymentData),
     })
 
     console.log("[v0] Sipay response status:", sipayResponse.status)
@@ -107,31 +100,30 @@ export async function POST(request: NextRequest) {
     const responseText = await sipayResponse.text()
     console.log("[v0] Sipay response:", responseText.substring(0, 200))
 
-    if (responseText.startsWith("SUCCESS")) {
-      const token = responseText.split(":")[1]
-      const paymentUrl = `https://www.paytr.com/odeme/guvenli/${token}`
+    try {
+      const jsonResponse = JSON.parse(responseText)
 
-      return NextResponse.json({
-        status: "success",
-        payment_url: paymentUrl,
-        orderId: orderId,
-        message: "Ödeme sayfasına yönlendiriliyorsunuz...",
-      })
-    } else if (responseText.includes("FAILED")) {
-      const errorMessage = responseText.split(":")[1] || "Bilinmeyen hata"
-      return NextResponse.json(
-        {
-          status: "error",
-          error_message: "Ödeme işlemi başlatılamadı: " + errorMessage,
-        },
-        { status: 400 },
-      )
-    } else {
-      // Try to extract payment URL from HTML response
+      if (jsonResponse.status === "success" && jsonResponse.payment_url) {
+        return NextResponse.json({
+          status: "success",
+          payment_url: jsonResponse.payment_url,
+          orderId: orderId,
+          message: "Ödeme sayfasına yönlendiriliyorsunuz...",
+        })
+      } else if (jsonResponse.status === "error") {
+        return NextResponse.json(
+          {
+            status: "error",
+            error_message: "Ödeme işlemi başlatılamadı: " + (jsonResponse.message || "Bilinmeyen hata"),
+          },
+          { status: 400 },
+        )
+      }
+    } catch (parseError) {
       const urlMatch =
         responseText.match(/action="([^"]+)"/i) ||
         responseText.match(/window\.location\.href\s*=\s*["']([^"']+)["']/i) ||
-        responseText.match(/https?:\/\/[^\s"'<>]+/i)
+        responseText.match(/https?:\/\/[^\s"'<>]+sipay[^\s"'<>]*/i)
 
       if (urlMatch && urlMatch[1]) {
         return NextResponse.json({
