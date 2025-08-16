@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { useCartStore } from "@/lib/cart-store"
 import { CheckoutModal } from "@/components/checkout-modal"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Image from "next/image"
 
 interface CartSidebarProps {
@@ -14,11 +14,49 @@ interface CartSidebarProps {
 }
 
 export function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
-  const { items, totalItems, totalPrice, totalPriceWithoutVAT, vatAmount, updateQuantity, removeItem, clearCart } =
-    useCartStore()
+  const {
+    items,
+    totalItems,
+    totalPrice,
+    totalPriceWithoutVAT,
+    vatAmount,
+    updateQuantity,
+    removeItem,
+    clearCart,
+    _hasHydrated,
+  } = useCartStore()
   const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState(false)
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   if (!isOpen) return null
+
+  if (!mounted || !_hasHydrated) {
+    return (
+      <>
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-40" onClick={onClose} />
+        <div className="fixed right-0 top-0 h-full w-full sm:w-96 bg-white shadow-xl z-50 transform transition-transform duration-300">
+          <div className="flex flex-col h-full">
+            <div className="flex items-center justify-between p-4 border-b">
+              <div className="flex items-center gap-2">
+                <ShoppingBag className="w-5 h-5" />
+                <h2 className="text-lg font-semibold">Sepetim</h2>
+              </div>
+              <Button variant="ghost" size="sm" onClick={onClose}>
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+            <div className="flex-1 flex items-center justify-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+            </div>
+          </div>
+        </div>
+      </>
+    )
+  }
 
   const handleCheckout = () => {
     setIsCheckoutModalOpen(true)

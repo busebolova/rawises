@@ -237,7 +237,7 @@ export function ProductDetailPage({ product, relatedProducts }: ProductDetailPag
                   ) : (
                     <>
                       <ShoppingCart className="w-5 h-5 mr-2" />
-                      Sepete Ekle ({(product.discountPrice * quantity).toFixed(2)} TL)
+                      Sepete Ekle ({((product.discountPrice || 0) * quantity).toFixed(2)} TL)
                     </>
                   )}
                 </Button>

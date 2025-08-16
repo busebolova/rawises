@@ -99,7 +99,7 @@ export function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
                     <span>
                       {item.name} x{item.quantity}
                     </span>
-                    <span>{(item.discountPrice * item.quantity).toFixed(2)} TL</span>
+                    <span>{((item.discountPrice || 0) * item.quantity).toFixed(2)} TL</span>
                   </div>
                 ))}
                 <div className="border-t pt-2 flex justify-between font-semibold">

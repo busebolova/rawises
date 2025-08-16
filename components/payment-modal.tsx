@@ -125,11 +125,11 @@ export function PaymentModal({ isOpen, onClose }: PaymentModalProps) {
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
                     <span>Ürün Toplamı ({items.length} ürün):</span>
-                    <span>{totalPriceWithoutVAT.toFixed(2)} TL</span>
+                    <span>{(totalPriceWithoutVAT || 0).toFixed(2)} TL</span>
                   </div>
                   <div className="flex justify-between text-orange-600">
                     <span>KDV (%20):</span>
-                    <span>{vatAmount.toFixed(2)} TL</span>
+                    <span>{(vatAmount || 0).toFixed(2)} TL</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Kargo:</span>
@@ -138,7 +138,7 @@ export function PaymentModal({ isOpen, onClose }: PaymentModalProps) {
                   <Separator />
                   <div className="flex justify-between font-semibold text-lg">
                     <span>Toplam:</span>
-                    <span className="text-purple-600">{totalPrice.toFixed(2)} TL</span>
+                    <span className="text-purple-600">{(totalPrice || 0).toFixed(2)} TL</span>
                   </div>
                 </div>
               </div>
@@ -285,7 +285,7 @@ export function PaymentModal({ isOpen, onClose }: PaymentModalProps) {
                   ) : (
                     <>
                       <CreditCard className="w-4 h-4 mr-2" />
-                      Güvenli Ödeme ({totalPrice.toFixed(2)} TL)
+                      Güvenli Ödeme ({(totalPrice || 0).toFixed(2)} TL)
                     </>
                   )}
                 </Button>

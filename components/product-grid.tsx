@@ -199,7 +199,8 @@ export function ProductGrid() {
   }
 
   const calculatePriceWithVAT = (price: number) => {
-    return price * 1.2
+    const safePrice = Number(price) || 0
+    return safePrice * 1.2
   }
 
   const totalPages = Math.ceil(filteredProducts.length / productsPerPage)
@@ -284,8 +285,8 @@ export function ProductGrid() {
           {currentProducts.map((product) => {
             const isAdded = addedItems.has(product.id)
             const productSlug = createProductSlug(product)
-            const priceWithVAT = calculatePriceWithVAT(product.discountPrice)
-            const salePriceWithVAT = calculatePriceWithVAT(product.salePrice)
+            const priceWithVAT = calculatePriceWithVAT(product.discountPrice || 0)
+            const salePriceWithVAT = calculatePriceWithVAT(product.salePrice || 0)
 
             return (
               <Card
@@ -344,8 +345,8 @@ export function ProductGrid() {
                     <div className="flex items-center justify-between">
                       <span className="text-xs text-gray-500">KDV Hariç:</span>
                       <div className="text-right">
-                        <span className="text-xs line-through text-gray-400">{product.salePrice} TL</span>
-                        <div className="text-sm font-medium text-rawises-600">{product.discountPrice} TL</div>
+                        <span className="text-xs line-through text-gray-400">{product.salePrice || 0} TL</span>
+                        <div className="text-sm font-medium text-rawises-600">{product.discountPrice || 0} TL</div>
                       </div>
                     </div>
 
