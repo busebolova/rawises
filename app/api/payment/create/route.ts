@@ -78,30 +78,69 @@ export async function POST(request: NextRequest) {
       lang: "tr",
     }
 
-    // Generate hash after all data is set
+    // Generate hash from payment data (without hash field)
     const hash = generateSipayHash(sipayPaymentData)
-    sipayPaymentData.hash = hash
+
+    const finalPaymentData = {
+      ...sipayPaymentData,
+      hash: hash,
+    }
 
     console.log("[v0] Sending payment request to Sipay ccpayment...")
-    console.log("[v0] Payment data:", JSON.stringify(sipayPaymentData, null, 2))
+    console.log("[v0] Payment data:", JSON.stringify(finalPaymentData, null, 2))
 
     const formData = new URLSearchParams()
-    Object.entries(sipayPaymentData).forEach(([key, value]) => {
+    Object.entries(finalPaymentData).forEach(([key, value]) => {
       formData.append(key, String(value))
     })
 
-    const sipayResponse = await fetch(`${process.env.SIPAY_BASE_URL}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      body: formData,
-    })
+    const sipayEndpoints = [
+      `${process.env.SIPAY_BASE_URL}/api/payment`,
+      `${process.env.SIPAY_BASE_URL}/payment`,
+      `${process.env.SIPAY_BASE_URL}`,
+      `${process.env.SIPAY_BASE_URL}/api/paySmart2D`,
+    ]
 
-    console.log("[v0] Sipay response status:", sipayResponse.status)
+    let sipayResponse: Response | null = null
+    let responseText = ""
 
-    const responseText = await sipayResponse.text()
-    console.log("[v0] Sipay response:", responseText.substring(0, 500))
+    for (const endpoint of sipayEndpoints) {
+      try {
+        console.log("[v0] Trying endpoint:", endpoint)
+
+        sipayResponse = await fetch(endpoint, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+          },
+          body: formData,
+        })
+
+        responseText = await sipayResponse.text()
+        console.log("[v0] Response from", endpoint, ":", responseText.substring(0, 300))
+
+        // If we get a successful response or a payment-related response, break
+        if (sipayResponse.ok || responseText.includes("payment") || responseText.includes("ödeme")) {
+          console.log("[v0] Using endpoint:", endpoint)
+          break
+        }
+      } catch (error) {
+        console.log("[v0] Endpoint failed:", endpoint, error)
+        continue
+      }
+    }
+
+    if (!sipayResponse) {
+      return NextResponse.json(
+        {
+          status: "error",
+          error_message: "Sipay sunucusuna erişilemiyor. Lütfen daha sonra tekrar deneyin.",
+        },
+        { status: 500 },
+      )
+    }
+
+    console.log("[v0] Final Sipay response status:", sipayResponse.status)
 
     if (!sipayResponse.ok) {
       console.error("[v0] Sipay API error:", responseText)
