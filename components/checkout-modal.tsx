@@ -39,6 +39,8 @@ export function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
       const orderId = `ORDER_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
       const productNames = items.map((item) => `${item.name} (${item.quantity}x)`).join(", ")
 
+      console.log("[v0] Starting payment process for order:", orderId)
+
       const paymentResult = await sipayService.createPayment({
         orderId,
         amount: totalAmount,
@@ -49,7 +51,11 @@ export function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
         productDescription: `${items.length} ürün içeren sipariş`,
       })
 
+      console.log("[v0] Payment result:", paymentResult)
+
       if (paymentResult.status === "success" && paymentResult.payment_url) {
+        console.log("[v0] Payment successful, redirecting to:", paymentResult.payment_url)
+
         // Store order info in localStorage for success page
         localStorage.setItem(
           "currentOrder",
@@ -64,11 +70,14 @@ export function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
         // Redirect to Sipay payment page
         window.location.href = paymentResult.payment_url
       } else {
-        alert(paymentResult.error_message || "Ödeme işlemi başlatılamadı")
+        const errorMessage = paymentResult.error_message || "Ödeme işlemi başlatılamadı"
+        console.error("[v0] Payment failed:", errorMessage)
+        alert(`Ödeme Hatası: ${errorMessage}`)
       }
     } catch (error) {
-      console.error("Payment error:", error)
-      alert("Ödeme işlemi sırasında bir hata oluştu")
+      console.error("[v0] Payment error:", error)
+      const errorMessage = error instanceof Error ? error.message : "Bilinmeyen bir hata oluştu"
+      alert(`Ödeme işlemi sırasında bir hata oluştu: ${errorMessage}`)
     } finally {
       setIsProcessing(false)
     }

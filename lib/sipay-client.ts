@@ -38,6 +38,8 @@ export async function createPayment(orderData: {
   error_message?: string
 }> {
   try {
+    console.log("[v0] Starting payment creation with data:", orderData)
+
     // Convert cart items format for Sipay
     const cartItems: CartItem[] = [
       {
@@ -58,6 +60,8 @@ export async function createPayment(orderData: {
       items: cartItems,
     }
 
+    console.log("[v0] API payload:", apiPayload)
+
     // Make API call to create payment (token generation happens server-side)
     const response = await fetch("/api/payment/create", {
       method: "POST",
@@ -67,24 +71,42 @@ export async function createPayment(orderData: {
       body: JSON.stringify(apiPayload),
     })
 
-    const result = await response.json()
+    console.log("[v0] API response status:", response.status)
+    console.log("[v0] API response ok:", response.ok)
+
+    let result
+    const responseText = await response.text()
+    console.log("[v0] Raw response text:", responseText.substring(0, 500))
+
+    try {
+      result = JSON.parse(responseText)
+      console.log("[v0] Parsed response:", result)
+    } catch (parseError) {
+      console.error("[v0] Failed to parse response as JSON:", parseError)
+      return {
+        status: "error",
+        error_message: `Sunucu yanıtı işlenemedi: ${responseText.substring(0, 100)}...`,
+      }
+    }
 
     if (response.ok && result.status === "success") {
+      console.log("[v0] Payment creation successful")
       return {
         status: "success",
         payment_url: result.payment_url,
       }
     } else {
+      console.error("[v0] Payment creation failed:", result)
       return {
         status: "error",
-        error_message: result.error_message || "Ödeme oluşturulamadı",
+        error_message: result.error_message || result.message || "Ödeme oluşturulamadı",
       }
     }
   } catch (error) {
-    console.error("Sipay createPayment error:", error)
+    console.error("[v0] Sipay createPayment error:", error)
     return {
       status: "error",
-      error_message: "Ödeme işlemi sırasında bir hata oluştu",
+      error_message: `Ödeme işlemi sırasında bir hata oluştu: ${error instanceof Error ? error.message : "Bilinmeyen hata"}`,
     }
   }
 }
