@@ -1,42 +1,30 @@
 import { type NextRequest, NextResponse } from "next/server"
 import crypto from "crypto"
 
-function generateSipayHash(data: any): string {
-  const merchantKey = process.env.SIPAY_MERCHANT_KEY!
+function generateSipayToken(data: any): string {
+  const appKey = process.env.SIPAY_APP_KEY!
+  const appSecret = process.env.SIPAY_APP_SECRET!
 
-  const hashString = [
-    data.merchant_id,
-    data.merchant_oid,
-    data.payment_amount,
-    data.currency,
-    data.user_name,
-    data.user_email,
-    data.user_phone,
-    data.user_address,
-    data.user_basket,
-    data.success_url,
-    data.fail_url,
-    merchantKey,
-  ].join("|")
+  // Create token using app_key + app_secret + timestamp
+  const timestamp = Math.floor(Date.now() / 1000).toString()
+  const tokenString = `${appKey}${appSecret}${timestamp}`
 
-  console.log("[v0] Hash string:", hashString)
-  return crypto.createHash("sha256").update(hashString).digest("hex")
+  console.log("[v0] Token generation string:", tokenString)
+  return crypto.createHash("sha256").update(tokenString).digest("hex")
 }
 
 export async function POST(request: NextRequest) {
   try {
     console.log("[v0] Environment variables check:")
     console.log("[v0] SIPAY_MERCHANT_ID:", process.env.SIPAY_MERCHANT_ID ? "SET" : "UNDEFINED")
-    console.log("[v0] SIPAY_MERCHANT_KEY:", process.env.SIPAY_MERCHANT_KEY ? "SET" : "UNDEFINED")
+    console.log("[v0] SIPAY_APP_KEY:", process.env.SIPAY_APP_KEY ? "SET" : "UNDEFINED")
+    console.log("[v0] SIPAY_APP_SECRET:", process.env.SIPAY_APP_SECRET ? "SET" : "UNDEFINED")
     console.log("[v0] SIPAY_BASE_URL:", process.env.SIPAY_BASE_URL ? process.env.SIPAY_BASE_URL : "UNDEFINED")
-    console.log(
-      "[v0] NEXT_PUBLIC_BASE_URL:",
-      process.env.NEXT_PUBLIC_BASE_URL ? process.env.NEXT_PUBLIC_BASE_URL : "UNDEFINED",
-    )
 
     const requiredEnvVars = {
       SIPAY_MERCHANT_ID: process.env.SIPAY_MERCHANT_ID,
-      SIPAY_MERCHANT_KEY: process.env.SIPAY_MERCHANT_KEY,
+      SIPAY_APP_KEY: process.env.SIPAY_APP_KEY,
+      SIPAY_APP_SECRET: process.env.SIPAY_APP_SECRET,
       SIPAY_BASE_URL: process.env.SIPAY_BASE_URL,
     }
 
@@ -65,7 +53,6 @@ export async function POST(request: NextRequest) {
     console.log("[v0] Using sipayBaseUrl:", sipayBaseUrl)
 
     const body = await request.json()
-
     const { orderId, email, amount, userName, userPhone, items, userAddress } = body
 
     if (!orderId || !email || !amount || !userName || !userPhone || !items) {
@@ -79,40 +66,35 @@ export async function POST(request: NextRequest) {
     }
 
     const sipayPaymentData = {
+      app_id: process.env.SIPAY_APP_KEY,
       merchant_id: process.env.SIPAY_MERCHANT_ID,
-      merchant_oid: orderId,
-      payment_amount: (amount * 100).toString(), // Sipay expects amount in kuruş
-      currency: "TRY",
+      invoice_id: orderId,
+      currency_code: "TRY",
+      total: (amount * 100).toString(), // Amount in kuruş
       success_url: `${baseUrl}/payment/success`,
       fail_url: `${baseUrl}/payment/failed`,
-      user_name: userName,
-      user_email: email,
-      user_phone: userPhone,
-      user_address: userAddress || userPhone,
-      user_basket: JSON.stringify(
-        items.map((item: any) => [item.name, (item.price * 100).toString(), item.quantity.toString()]),
-      ),
-      debug_on: "0",
-      test_mode: "0",
-      non_3d: "0",
-      client_lang: "tr",
+      name: userName,
+      email: email,
+      phone: userPhone,
+      address: userAddress || userPhone,
+      items: items.map((item: any) => ({
+        name: item.name,
+        price: (item.price * 100).toString(),
+        quantity: item.quantity.toString(),
+      })),
+      test_mode: false,
+      lang: "tr",
     }
 
-    const hash = generateSipayHash(sipayPaymentData)
-    sipayPaymentData.hash = hash
+    const token = generateSipayToken(sipayPaymentData)
+    sipayPaymentData.token = token
 
-    console.log("[v0] Generated hash:", hash)
+    console.log("[v0] Generated token:", token)
     console.log("[v0] Sending payment data to Sipay:", JSON.stringify(sipayPaymentData, null, 2))
 
-    const formData = new URLSearchParams()
-    Object.entries(sipayPaymentData).forEach(([key, value]) => {
-      formData.append(key, value as string)
-    })
-
-    const sipayUrl = `${sipayBaseUrl}/api/paySmart2D`
+    const sipayUrl = `${sipayBaseUrl}/api/payment/create`
     console.log("[v0] Final Sipay URL:", sipayUrl)
 
-    // Validate URL before making request
     try {
       new URL(sipayUrl)
     } catch (urlError) {
@@ -129,92 +111,67 @@ export async function POST(request: NextRequest) {
     const sipayResponse = await fetch(sipayUrl, {
       method: "POST",
       headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        Authorization: `Bearer ${process.env.SIPAY_APP_KEY}`,
       },
-      body: formData.toString(),
+      body: JSON.stringify(sipayPaymentData),
     })
 
-    const sipayResult = await sipayResponse.text()
-    console.log("[v0] Sipay raw response:", sipayResult)
+    const contentType = sipayResponse.headers.get("content-type")
+    console.log("[v0] Sipay response content-type:", contentType)
     console.log("[v0] Sipay response status:", sipayResponse.status)
 
-    if (sipayResponse.ok) {
-      // Check for direct payment URL redirects
-      const urlPatterns = [
-        /window\.location\.href\s*=\s*["']([^"']+)["']/,
-        /action\s*=\s*["']([^"']+)["']/,
-        /location\.replace\s*$$\s*["']([^"']+)["']\s*$$/,
-        /href\s*=\s*["']([^"']+)["'][^>]*>.*(?:ödeme|payment|pay)/i,
-        /<meta[^>]*http-equiv\s*=\s*["']refresh["'][^>]*content\s*=\s*["'][^;]*;\s*url\s*=\s*([^"']+)["']/i,
-      ]
+    let sipayResult: any
 
-      for (const pattern of urlPatterns) {
-        const urlMatch = sipayResult.match(pattern)
-        if (urlMatch && urlMatch[1]) {
-          console.log("[v0] Found payment URL:", urlMatch[1])
-          return NextResponse.json({
-            status: "success",
-            payment_url: urlMatch[1],
-            orderId: orderId,
-            message: "Ödeme sayfasına yönlendiriliyorsunuz...",
-          })
-        }
-      }
+    if (contentType?.includes("application/json")) {
+      sipayResult = await sipayResponse.json()
+      console.log("[v0] Sipay JSON response:", sipayResult)
 
-      // Check if response contains a payment form that needs to be submitted
-      if (sipayResult.includes("<form") && (sipayResult.includes("submit") || sipayResult.includes("payment"))) {
-        // Extract form action URL
-        const formMatch = sipayResult.match(/<form[^>]*action\s*=\s*["']([^"']+)["']/i)
-        if (formMatch && formMatch[1]) {
-          console.log("[v0] Found form action URL:", formMatch[1])
-          return NextResponse.json({
-            status: "success",
-            payment_url: formMatch[1],
-            orderId: orderId,
-            message: "Ödeme sayfasına yönlendiriliyorsunuz...",
-          })
-        }
-      }
-
-      // Enhanced error detection
-      const errorPatterns = [
-        /HATA[:\s]*([^<\n]+)/i,
-        /ERROR[:\s]*([^<\n]+)/i,
-        /Unauthenticated/i,
-        /Authentication\s+failed/i,
-        /Invalid\s+request/i,
-        /Geçersiz\s+istek/i,
-        /Yetkisiz\s+erişim/i,
-      ]
-
-      for (const pattern of errorPatterns) {
-        const errorMatch = sipayResult.match(pattern)
-        if (errorMatch) {
-          console.log("[v0] Found error in response:", errorMatch[0])
-          return NextResponse.json(
-            {
-              status: "error",
-              error_message: "Ödeme işlemi başlatılamadı: " + (errorMatch[1] || errorMatch[0]),
-            },
-            { status: 400 },
-          )
-        }
-      }
-
-      // If HTML contains DOCTYPE but no clear payment URL or error, it might be a complete page
-      if (sipayResult.includes("<!DOCTYPE") || sipayResult.includes("<html")) {
-        console.log("[v0] Received complete HTML page from Sipay")
-
-        // Try to find any URLs in script tags or data attributes
-        const scriptUrlMatch = sipayResult.match(
-          /(?:src|href|url)\s*[:=]\s*["']([^"']*(?:sipay|payment|pay)[^"']*)["']/i,
+      if (sipayResult.status === "success" && sipayResult.payment_url) {
+        return NextResponse.json({
+          status: "success",
+          payment_url: sipayResult.payment_url,
+          orderId: orderId,
+          message: "Ödeme sayfasına yönlendiriliyorsunuz...",
+        })
+      } else if (sipayResult.error || sipayResult.message) {
+        return NextResponse.json(
+          {
+            status: "error",
+            error_message: "Ödeme işlemi başlatılamadı: " + (sipayResult.error || sipayResult.message),
+          },
+          { status: 400 },
         )
-        if (scriptUrlMatch && scriptUrlMatch[1]) {
-          console.log("[v0] Found URL in scripts:", scriptUrlMatch[1])
+      }
+    } else {
+      // Handle HTML response
+      sipayResult = await sipayResponse.text()
+      console.log("[v0] Sipay HTML response:", sipayResult.substring(0, 500))
+
+      // Try different endpoint if this one returns HTML
+      const alternativeUrl = `${sipayBaseUrl}/api/v1/payment`
+      console.log("[v0] Trying alternative endpoint:", alternativeUrl)
+
+      const altResponse = await fetch(alternativeUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          "X-API-KEY": process.env.SIPAY_APP_KEY,
+          "X-API-SECRET": process.env.SIPAY_APP_SECRET,
+        },
+        body: JSON.stringify(sipayPaymentData),
+      })
+
+      if (altResponse.headers.get("content-type")?.includes("application/json")) {
+        const altResult = await altResponse.json()
+        console.log("[v0] Alternative endpoint response:", altResult)
+
+        if (altResult.status === "success" && altResult.payment_url) {
           return NextResponse.json({
             status: "success",
-            payment_url: scriptUrlMatch[1],
+            payment_url: altResult.payment_url,
             orderId: orderId,
             message: "Ödeme sayfasına yönlendiriliyorsunuz...",
           })
@@ -222,17 +179,11 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const htmlPreview = sipayResult
-      .replace(/<[^>]*>/g, " ")
-      .substring(0, 300)
-      .trim()
-    console.log("[v0] HTML content preview:", htmlPreview)
-
     return NextResponse.json(
       {
         status: "error",
-        error_message: "Sipay'dan geçersiz yanıt alındı. Lütfen ödeme bilgilerinizi kontrol edin.",
-        debug_info: htmlPreview,
+        error_message: "Sipay entegrasyonu şu anda kullanılamıyor. Lütfen daha sonra tekrar deneyin.",
+        debug_info: "API endpoint veya format hatası",
       },
       { status: 400 },
     )
