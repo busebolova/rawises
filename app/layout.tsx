@@ -21,6 +21,9 @@ export const metadata: Metadata = {
   title: "Rawises - Güzellik ve Kozmetik",
   description: "En kaliteli kozmetik ürünleri uygun fiyatlarla",
     generator: 'v0.app'
+   icons: {
+    icon: "/favicon.ico",
+  },
 }
 
 export default function RootLayout({
