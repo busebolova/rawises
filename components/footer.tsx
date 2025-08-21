@@ -72,8 +72,10 @@ export function Footer() {
                   </Button>
                   <Button size="sm" variant="outline" className="p-2 bg-transparent hover:bg-rawises-100">
                     <Youtube className="w-4 h-4" />
+                    <a href="https://www.youtube.com/@rawisestr" target="_blank">YouTube</a>
                     <Button size="sm" variant="outline" className="p-2 bg-transparent hover:bg-rawises-100">
                     <Tiktok className="w-4 h-4" />
+                      <a href="https://www.tiktok.com/@rawisestr" target="_blank">Tiktok</a>
                   </Button>
                 </div>
               </div>
