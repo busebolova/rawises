@@ -65,12 +65,15 @@ export function Footer() {
                   </Button>
                   <Button size="sm" variant="outline" className="p-2 bg-transparent hover:bg-rawises-100">
                     <Instagram className="w-4 h-4" />
+                   <a href="https://www.instagram.com/rawisestr/" target="_blank">Instagram</a>
                   </Button>
                   <Button size="sm" variant="outline" className="p-2 bg-transparent hover:bg-rawises-100">
                     <Twitter className="w-4 h-4" />
                   </Button>
                   <Button size="sm" variant="outline" className="p-2 bg-transparent hover:bg-rawises-100">
                     <Youtube className="w-4 h-4" />
+                    <Button size="sm" variant="outline" className="p-2 bg-transparent hover:bg-rawises-100">
+                    <Tiktok className="w-4 h-4" />
                   </Button>
                 </div>
               </div>
