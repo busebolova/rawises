@@ -21,9 +21,16 @@ export function FeaturedProducts() {
         const data = await response.json()
 
         if (data.products) {
-          // En yüksek indirimli ve 0 TL olmayan ürünleri al
           const sortedByDiscount = data.products
-            .filter((p: Product) => p.salePrice > p.discountPrice && p.discountPrice > 0 && p.salePrice > 0)
+            .filter(
+              (p: Product) =>
+                p.salePrice > p.discountPrice &&
+                p.discountPrice > 0 &&
+                p.salePrice > 0 &&
+                p.imageUrl &&
+                p.imageUrl.trim() !== "" &&
+                !p.imageUrl.includes("placeholder"),
+            )
             .sort(
               (a: Product, b: Product) =>
                 calculateDiscountPercentage(b.salePrice, b.discountPrice) -

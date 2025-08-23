@@ -11,6 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import Image from "next/image"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { useAuth } from "@/contexts/auth-context"
 
 export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false)
@@ -28,6 +29,7 @@ export default function RegisterPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const router = useRouter()
+  const { signUp } = useAuth()
 
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
@@ -91,21 +93,23 @@ export default function RegisterPage() {
       return
     }
 
-    // Simulated registration
     try {
-      await new Promise((resolve) => setTimeout(resolve, 2000))
+      const { error } = await signUp(formData.email, formData.password, {
+        first_name: formData.firstName,
+        last_name: formData.lastName,
+        phone: formData.phone,
+        marketing_consent: acceptMarketing,
+      })
 
-      // Başarılı kayıt
-      localStorage.setItem(
-        "user",
-        JSON.stringify({
-          email: formData.email,
-          name: `${formData.firstName} ${formData.lastName}`,
-          phone: formData.phone,
-        }),
-      )
-
-      router.push("/auth/login?registered=true")
+      if (error) {
+        if (error.message.includes("already registered")) {
+          setErrors({ general: "Bu e-posta adresi zaten kayıtlı" })
+        } else {
+          setErrors({ general: "Kayıt olurken bir hata oluştu: " + error.message })
+        }
+      } else {
+        router.push("/auth/login?message=registration_success")
+      }
     } catch (error) {
       setErrors({ general: "Kayıt olurken bir hata oluştu" })
     } finally {

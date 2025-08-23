@@ -25,6 +25,8 @@ import type { WarehouseStock } from "@/lib/stock-types"
 import { WAREHOUSE_LABELS } from "@/lib/stock-types"
 import Image from "next/image"
 import Link from "next/link"
+import { useRealtime } from "@/hooks/use-realtime"
+import { RealtimeStatus } from "@/components/realtime-status"
 
 const AdminStockPage = () => {
   // Real CSV product data
@@ -37,6 +39,37 @@ const AdminStockPage = () => {
   const [currentPage, setCurrentPage] = useState(1)
   const [productsPerPage] = useState(10)
 
+  const { inventory, addNotification } = useRealtime()
+
+  useEffect(() => {
+    if (Object.keys(inventory).length > 0) {
+      setProducts((prevProducts) =>
+        prevProducts.map((product) => {
+          const updatedStock = inventory[product.id]
+          if (updatedStock !== undefined) {
+            const newMainStock = Math.floor(updatedStock * 0.7)
+            const newAdanaStock = Math.floor(updatedStock * 0.3)
+
+            // Check if stock changed significantly
+            const oldTotal = product.stockMainWarehouse + product.stockAdana
+            const newTotal = newMainStock + newAdanaStock
+
+            if (Math.abs(oldTotal - newTotal) > 5) {
+              console.log(`[v0] Stock updated for ${product.name}: ${oldTotal} → ${newTotal}`)
+            }
+
+            return {
+              ...product,
+              stockMainWarehouse: newMainStock,
+              stockAdana: newAdanaStock,
+            }
+          }
+          return product
+        }),
+      )
+    }
+  }, [inventory])
+
   // Fetch real product data from API
   useEffect(() => {
     const fetchProducts = async () => {
@@ -45,8 +78,8 @@ const AdminStockPage = () => {
         const response = await fetch("/api/admin/products")
         if (response.ok) {
           const data = await response.json()
-          setProducts(data)
-          setFilteredProducts(data)
+          setProducts(data.products || [])
+          setFilteredProducts(data.products || [])
         }
       } catch (error) {
         console.error("Failed to fetch products:", error)
@@ -144,6 +177,14 @@ const AdminStockPage = () => {
             0,
             warehouse === "main" ? product.stockMainWarehouse + adjustment : product.stockAdana + adjustment,
           )
+
+          const warehouseName = warehouse === "main" ? "Ana Depo" : "Adana Depo"
+          addNotification({
+            type: "inventory",
+            message: `Manuel stok düzeltmesi: ${product.name} - ${warehouseName} ${adjustment > 0 ? "+" : ""}${adjustment}`,
+            productId: product.id,
+          })
+
           return {
             ...product,
             [warehouse === "main" ? "stockMainWarehouse" : "stockAdana"]: newStock,
@@ -180,6 +221,7 @@ const AdminStockPage = () => {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <RealtimeStatus />
           <Button asChild>
             <Link href="/admin/stock/movements">
               <RotateCcw className="h-4 w-4 mr-2" />

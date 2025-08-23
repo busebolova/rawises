@@ -31,7 +31,7 @@
     --sidebar-primary: 217.2 91.2% 59.8%;
     --sidebar-primary-foreground: 210 40% 98%;
     --sidebar-accent: 271.5 81.3% 55.9%;
-    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-accent-foreground: 222.2 47.4% 11.2%;
     --sidebar-border: 217.2 32.6% 17.5%;
     --sidebar-ring: 217.2 91.2% 59.8%;
 
@@ -171,4 +171,58 @@ html {
 
 .animate-pulse-glow {
   animation: pulse-glow 2s ease-in-out infinite;
+}
+
+/* Hide v0 built-with button in production */
+[id*="v0-built-with-button"] {
+  display: none !important;
+}
+
+/* Hide any v0 attribution elements */
+[href*="v0.app"] {
+  display: none !important;
+}
+
+/* Additional safety rule for v0 branding elements */
+div[style*="Built with"] {
+  display: none !important;
+}
+
+/* Adding more aggressive v0 button hiding rules with valid CSS syntax */
+/* Hide all possible v0 attribution variations */
+[class*="v0-built-with"],
+[class*="built-with-v0"],
+[id*="built-with"],
+[data-testid*="v0"],
+[data-v0*="true"],
+button[aria-label*="Built with"],
+button[title*="Built with"],
+a[title*="Built with v0"],
+div[data-radix-popper-content-wrapper] button[aria-label*="Built"],
+.fixed.bottom-4.right-4 button,
+.fixed.bottom-6.right-6 button,
+button[style*="position: fixed"][style*="bottom"][style*="right"] {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  position: absolute !important;
+  left: -9999px !important;
+  width: 0 !important;
+  height: 0 !important;
+  overflow: hidden !important;
+}
+
+/* Hide any floating buttons in bottom right corner */
+.fixed[class*="bottom"][class*="right"] button,
+div[style*="position: fixed"][style*="bottom: "][style*="right: "] {
+  display: none !important;
+}
+
+/* Nuclear option - hide any element containing v0 text */
+*[class~="contains"][class~="Built"][class~="with"][class~="v0"],
+[href*="v0.app"],
+*[aria-label*="v0"],
+*[title*="v0"] {
+  display: none !important;
 }

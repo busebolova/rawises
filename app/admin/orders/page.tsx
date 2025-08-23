@@ -25,6 +25,8 @@ import {
 import type { Order, OrderStatus } from "@/lib/order-types"
 import { ORDER_STATUS_LABELS, ORDER_STATUS_COLORS } from "@/lib/order-types"
 import Link from "next/link"
+import { useRealtime } from "@/hooks/use-realtime"
+import { RealtimeStatus } from "@/components/realtime-status"
 
 export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>([])
@@ -35,6 +37,23 @@ export default function OrdersPage() {
   const [currentPage, setCurrentPage] = useState(1)
   const [ordersPerPage] = useState(10)
   const [lastRefresh, setLastRefresh] = useState(new Date())
+
+  const { orders: realtimeOrders, addNotification, isConnected } = useRealtime()
+
+  useEffect(() => {
+    if (realtimeOrders.length > 0) {
+      console.log("[v0] Received real-time orders:", realtimeOrders.length)
+      setOrders((prevOrders) => {
+        const newOrders = [...realtimeOrders, ...prevOrders]
+        // Remove duplicates based on order ID
+        const uniqueOrders = newOrders.filter(
+          (order, index, self) => index === self.findIndex((o) => o.id === order.id),
+        )
+        return uniqueOrders.slice(0, 100) // Keep last 100 orders
+      })
+      setLastRefresh(new Date())
+    }
+  }, [realtimeOrders])
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -98,9 +117,20 @@ export default function OrdersPage() {
 
   const handleStatusChange = (orderId: string, newStatus: OrderStatus) => {
     setOrders((prev) =>
-      prev.map((order) =>
-        order.id === orderId ? { ...order, status: newStatus, updatedAt: new Date().toISOString() } : order,
-      ),
+      prev.map((order) => {
+        if (order.id === orderId) {
+          const updatedOrder = { ...order, status: newStatus, updatedAt: new Date().toISOString() }
+
+          addNotification({
+            type: "order",
+            message: `Sipariş durumu güncellendi: #${order.orderNumber} - ${ORDER_STATUS_LABELS[newStatus]}`,
+            orderId: order.id,
+          })
+
+          return updatedOrder
+        }
+        return order
+      }),
     )
   }
 
@@ -144,12 +174,16 @@ export default function OrdersPage() {
           <h1 className="text-3xl font-bold text-foreground">Sipariş Yönetimi</h1>
           <p className="text-muted-foreground">
             Sistem yeni kuruldu • Son güncelleme: {lastRefresh.toLocaleTimeString("tr-TR")}
+            {isConnected && <span className="ml-2 text-green-600">• Canlı takip aktif</span>}
           </p>
         </div>
-        <Button onClick={handleRefresh} variant="outline" size="sm">
-          <RefreshCw className="h-4 w-4 mr-2" />
-          Yenile
-        </Button>
+        <div className="flex items-center gap-2">
+          <RealtimeStatus />
+          <Button onClick={handleRefresh} variant="outline" size="sm">
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Yenile
+          </Button>
+        </div>
       </div>
 
       {/* Stats Cards */}
@@ -161,7 +195,7 @@ export default function OrdersPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.total}</div>
-            <p className="text-xs text-muted-foreground">Yeni sistem</p>
+            <p className="text-xs text-muted-foreground">{isConnected ? "Gerçek zamanlı" : "Yeni sistem"}</p>
           </CardContent>
         </Card>
         <Card>
@@ -171,7 +205,7 @@ export default function OrdersPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.pending}</div>
-            <p className="text-xs text-muted-foreground">Gerçek zamanlı</p>
+            <p className="text-xs text-muted-foreground">{isConnected ? "Canlı güncelleme" : "Gerçek zamanlı"}</p>
           </CardContent>
         </Card>
         <Card>
@@ -205,8 +239,10 @@ export default function OrdersPage() {
               Sistem yeni kuruldu. İlk siparişler geldiğinde burada görüntülenecek.
             </p>
             <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
-              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-              Gerçek zamanlı sipariş takibi aktif
+              <div
+                className={`w-2 h-2 rounded-full ${isConnected ? "bg-green-500 animate-pulse" : "bg-gray-400"}`}
+              ></div>
+              {isConnected ? "Gerçek zamanlı sipariş takibi aktif" : "Bağlantı bekleniyor"}
             </div>
           </CardContent>
         </Card>

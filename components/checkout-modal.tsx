@@ -1,11 +1,12 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { X, CreditCard, User, Mail, Phone, MapPin, ArrowLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useCartStore } from "@/lib/cart-store"
+import { useRealtime } from "@/hooks/use-realtime"
 
 interface CheckoutModalProps {
   isOpen: boolean
@@ -13,7 +14,7 @@ interface CheckoutModalProps {
 }
 
 export function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
-  const { items, totalPrice, clearCart, isHydrated } = useCartStore()
+  const { items, totalPrice, memberDiscount, memberDiscountAmount, finalTotal, clearCart, isHydrated } = useCartStore()
   const [isProcessing, setIsProcessing] = useState(false)
   const [step, setStep] = useState<"customer" | "payment">("customer")
   const [customerInfo, setCustomerInfo] = useState({
@@ -31,9 +32,20 @@ export function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
     cardHolderName: "",
   })
 
+  const [user, setUser] = useState<any>(null)
+
+  const { addNotification } = useRealtime()
+
+  useEffect(() => {
+    const userData = localStorage.getItem("user")
+    if (userData) {
+      setUser(JSON.parse(userData))
+    }
+  }, [])
+
   if (!isOpen) return null
 
-  const totalAmount = isHydrated ? totalPrice : 0
+  const totalAmount = isHydrated ? finalTotal || totalPrice : 0
 
   const handleProceedToPayment = () => {
     if (!customerInfo.name || !customerInfo.email || !customerInfo.phone) {
@@ -76,6 +88,12 @@ export function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
 
       console.log("[v0] Calling payment API with order:", orderId)
 
+      addNotification({
+        type: "order",
+        message: `Yeni sipariş oluşturuluyor: #${orderId} - ₺${totalAmount.toFixed(2)}`,
+        orderId: orderId,
+      })
+
       // Call payment API
       const response = await fetch("/api/payment/create", {
         method: "POST",
@@ -110,6 +128,12 @@ export function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
       if (result.status === "success" && result.payment_html) {
         console.log("[v0] Processing payment HTML")
 
+        addNotification({
+          type: "order",
+          message: `Ödeme işlemi başlatıldı: #${orderId}`,
+          orderId: orderId,
+        })
+
         // Create a temporary div to hold the HTML
         const tempDiv = document.createElement("div")
         tempDiv.innerHTML = result.payment_html
@@ -136,6 +160,13 @@ export function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
       }
     } catch (error) {
       console.error("[v0] Payment error:", error)
+
+      addNotification({
+        type: "order",
+        message: `Ödeme hatası: ${error instanceof Error ? error.message : String(error)}`,
+        orderId: "error",
+      })
+
       alert("Ödeme işlemi sırasında hata: " + (error instanceof Error ? error.message : String(error)))
     } finally {
       setIsProcessing(false)
@@ -182,10 +213,34 @@ export function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
                       <span>{((item.discountPrice || 0) * item.quantity).toFixed(2)} TL</span>
                     </div>
                   ))}
+
+                  {user && memberDiscount > 0 && (
+                    <>
+                      <div className="flex justify-between text-sm text-gray-600">
+                        <span>Ara Toplam:</span>
+                        <span>{(totalPrice - totalPrice * 0.2).toFixed(2)} TL</span>
+                      </div>
+                      <div className="flex justify-between text-sm text-green-600">
+                        <span>Üye İndirimi (-%{memberDiscount}):</span>
+                        <span>-{memberDiscountAmount.toFixed(2)} TL</span>
+                      </div>
+                      <div className="flex justify-between text-sm text-gray-600">
+                        <span>KDV (%20):</span>
+                        <span>{(totalAmount - totalAmount / 1.2).toFixed(2)} TL</span>
+                      </div>
+                    </>
+                  )}
+
                   <div className="border-t pt-2 flex justify-between font-semibold">
                     <span>Toplam:</span>
                     <span className="text-rawises-600">{totalAmount.toFixed(2)} TL</span>
                   </div>
+
+                  {user && memberDiscount > 0 && (
+                    <div className="text-xs text-green-600 text-center">
+                      ✓ {memberDiscountAmount.toFixed(2)} TL tasarruf ettiniz!
+                    </div>
+                  )}
                 </div>
               )}
             </div>

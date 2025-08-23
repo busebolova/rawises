@@ -2,6 +2,8 @@ import type React from "react"
 import type { Metadata } from "next"
 import { Poppins, Dancing_Script } from "next/font/google"
 import "./globals.css"
+import { Toaster } from "@/components/ui/toaster"
+import { AuthProvider } from "@/contexts/auth-context"
 
 const poppins = Poppins({
   subsets: ["latin"],
@@ -21,11 +23,6 @@ export const metadata: Metadata = {
   title: "Rawises - Güzellik ve Kozmetik",
   description: "En kaliteli kozmetik ürünleri uygun fiyatlarla",
     generator: 'v0.app'
-  icons: {
-  icon: "/favicon.ico",
-  shortcut: "/favicon-16x16.png",
-  apple: "/apple-touch-icon.png", 
-},
 }
 
 export default function RootLayout({
@@ -35,7 +32,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="tr">
-      <body className={`${poppins.variable} ${dancingScript.variable} ${poppins.className}`}>{children}</body>
+      <body className={`${poppins.variable} ${dancingScript.variable} ${poppins.className}`}>
+        <AuthProvider>{children}</AuthProvider>
+        <Toaster />
+      </body>
     </html>
   )
 }

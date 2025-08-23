@@ -1,8 +1,7 @@
 "use client"
 
 import type React from "react"
-
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -13,11 +12,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ArrowLeft, Save, Upload, X } from "lucide-react"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
+import type { Product } from "@/lib/csv-parser"
 
-export default function NewProductPage() {
+export default function EditProductPage({ params }: { params: { id: string } }) {
   const router = useRouter()
-  const [loading, setSaving] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
   const [imagePreview, setImagePreview] = useState<string>("")
+  const [product, setProduct] = useState<Product | null>(null)
 
   const [formData, setFormData] = useState({
     name: "",
@@ -36,6 +38,52 @@ export default function NewProductPage() {
     metaDescription: "",
     isActive: true,
   })
+
+  useEffect(() => {
+    const loadProduct = async () => {
+      try {
+        console.log("[v0] Loading product with ID:", params.id)
+        const response = await fetch(`/api/admin/products/${params.id}`)
+        console.log("[v0] API response status:", response.status)
+
+        const data = await response.json()
+        console.log("[v0] API response data:", data)
+
+        if (data.product) {
+          const p = data.product
+          console.log("[v0] Product found:", p)
+          setProduct(p)
+          setFormData({
+            name: p.name || "",
+            description: p.description || "",
+            brand: p.brand || "",
+            sku: p.sku || "",
+            barcode: p.barcode || "",
+            categories: p.categories || "",
+            tags: p.tags || "",
+            salePrice: p.salePrice?.toString() || "",
+            discountPrice: p.discountPrice?.toString() || "",
+            purchasePrice: p.purchasePrice?.toString() || "",
+            stockMainWarehouse: p.stockMainWarehouse?.toString() || "",
+            stockAdana: p.stockAdana?.toString() || "",
+            metaTitle: p.metaTitle || "",
+            metaDescription: p.metaDescription || "",
+            isActive: p.isActive ?? true,
+          })
+          setImagePreview(p.imageUrl || "")
+          console.log("[v0] Form data set:", formData)
+        } else {
+          console.log("[v0] No product found in response")
+        }
+        setLoading(false)
+      } catch (error) {
+        console.error("[v0] Error loading product:", error)
+        setLoading(false)
+      }
+    }
+
+    loadProduct()
+  }, [params.id])
 
   const handleInputChange = (field: string, value: string | boolean) => {
     setFormData((prev) => ({
@@ -59,14 +107,12 @@ export default function NewProductPage() {
     setSaving(true)
 
     try {
-      // Validate required fields
       if (!formData.name || !formData.brand || !formData.sku || !formData.salePrice) {
         alert("Lütfen zorunlu alanları doldurun")
         setSaving(false)
         return
       }
 
-      // Create product data
       const productData = {
         ...formData,
         salePrice: Number.parseFloat(formData.salePrice) || 0,
@@ -78,12 +124,11 @@ export default function NewProductPage() {
           .toLowerCase()
           .replace(/\s+/g, "-")
           .replace(/[^a-z0-9-]/g, ""),
-        variantId: `v${Date.now()}`,
         imageUrl: imagePreview || "/placeholder.svg?height=200&width=200",
       }
 
-      const response = await fetch("/api/admin/products", {
-        method: "POST",
+      const response = await fetch(`/api/admin/products/${params.id}`, {
+        method: "PUT",
         headers: {
           "Content-Type": "application/json",
         },
@@ -91,14 +136,14 @@ export default function NewProductPage() {
       })
 
       if (response.ok) {
-        alert("Ürün başarıyla oluşturuldu!")
+        alert("Ürün başarıyla güncellendi!")
         router.push("/admin/products")
       } else {
-        throw new Error("Failed to create product")
+        throw new Error("Failed to update product")
       }
     } catch (error) {
-      console.error("Error creating product:", error)
-      alert("Ürün oluşturulurken hata oluştu")
+      console.error("Error updating product:", error)
+      alert("Ürün güncellenirken hata oluştu")
     } finally {
       setSaving(false)
     }
@@ -116,6 +161,30 @@ export default function NewProductPage() {
     "Parfüm > Erkek",
   ]
 
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="animate-pulse space-y-4">
+          <div className="h-8 bg-gray-200 rounded w-1/4"></div>
+          <div className="h-64 bg-gray-200 rounded"></div>
+        </div>
+      </div>
+    )
+  }
+
+  if (!product) {
+    return (
+      <div className="space-y-6">
+        <div className="text-center py-12">
+          <p className="text-muted-foreground">Ürün bulunamadı</p>
+          <Button onClick={() => router.back()} className="mt-4">
+            Geri Dön
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -125,8 +194,8 @@ export default function NewProductPage() {
           Geri Dön
         </Button>
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Yeni Ürün Ekle</h1>
-          <p className="text-muted-foreground">Yeni bir ürün oluşturun</p>
+          <h1 className="text-3xl font-bold text-foreground">Ürün Düzenle</h1>
+          <p className="text-muted-foreground">{product.name} ürününü düzenleyin</p>
         </div>
       </div>
 
@@ -192,7 +261,7 @@ export default function NewProductPage() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="categories">Kategori *</Label>
-                  <Select onValueChange={(value) => handleInputChange("categories", value)}>
+                  <Select value={formData.categories} onValueChange={(value) => handleInputChange("categories", value)}>
                     <SelectTrigger>
                       <SelectValue placeholder="Kategori seçin" />
                     </SelectTrigger>
@@ -338,9 +407,9 @@ export default function NewProductPage() {
               </div>
 
               <div className="flex flex-col gap-2">
-                <Button onClick={handleSave} disabled={loading} className="w-full">
+                <Button onClick={handleSave} disabled={saving} className="w-full">
                   <Save className="h-4 w-4 mr-2" />
-                  {loading ? "Kaydediliyor..." : "Kaydet"}
+                  {saving ? "Güncelleniyor..." : "Güncelle"}
                 </Button>
                 <Button variant="outline" onClick={() => router.back()} className="w-full">
                   İptal

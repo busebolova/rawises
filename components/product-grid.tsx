@@ -4,11 +4,11 @@ import { useState, useEffect } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Heart, ShoppingCart, Check, Filter, X, Calculator } from "lucide-react"
+import { ShoppingCart, Check, Filter, X, Calculator } from "lucide-react"
 import Image from "next/image"
 import { stripHtmlTags, calculateDiscountPercentage, type Product } from "@/lib/csv-parser"
 import { useCartStore } from "@/lib/cart-store"
-import Link from "next/link"
+import { useRealtime } from "@/hooks/use-realtime"
 
 export function ProductGrid() {
   const [products, setProducts] = useState<Product[]>([])
@@ -21,22 +21,80 @@ export function ProductGrid() {
   const [productsPerPage] = useState(12)
   const { addItem } = useCartStore()
 
+  const { inventory, isConnected } = useRealtime()
+
+  useEffect(() => {
+    if (Object.keys(inventory).length > 0) {
+      setProducts((prevProducts) =>
+        prevProducts.map((product) => {
+          const updatedStock = inventory[product.id]
+          if (updatedStock !== undefined) {
+            return {
+              ...product,
+              stockMainWarehouse: Math.floor(updatedStock * 0.7),
+              stockAdana: Math.floor(updatedStock * 0.3),
+            }
+          }
+          return product
+        }),
+      )
+    }
+  }, [inventory])
+
+  const goToPage = (page: number) => {
+    if (page >= 1 && page <= Math.ceil((filteredProducts?.length || 0) / productsPerPage)) {
+      setCurrentPage(page)
+    }
+  }
+
   useEffect(() => {
     const loadProducts = async () => {
       try {
-        const response = await fetch("/api/products")
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), 10000)
+
+        let response
+        try {
+          response = await fetch("/api/products", {
+            signal: controller.signal,
+          })
+        } catch (fetchError) {
+          console.error("[v0] Fetch failed, using fallback data:", fetchError)
+          setProducts([])
+          setFilteredProducts([])
+          setLoading(false)
+          return
+        }
+
+        clearTimeout(timeoutId)
+
+        if (!response.ok) {
+          console.error("[v0] API response not ok:", response.status)
+          setProducts([])
+          setFilteredProducts([])
+          setLoading(false)
+          return
+        }
+
         const data = await response.json()
 
-        if (data.products) {
+        if (data.products && Array.isArray(data.products)) {
           const validProducts = data.products.filter(
             (product: Product) => product.discountPrice > 0 && product.salePrice > 0,
           )
+          console.log("[v0] Loaded products successfully:", validProducts.length)
           setProducts(validProducts)
           setFilteredProducts(validProducts)
+        } else {
+          console.log("[v0] No products in response, using empty array")
+          setProducts([])
+          setFilteredProducts([])
         }
-        setLoading(false)
       } catch (error) {
-        console.error("Error loading products:", error)
+        console.error("[v0] Error in loadProducts:", error)
+        setProducts([])
+        setFilteredProducts([])
+      } finally {
         setLoading(false)
       }
     }
@@ -44,117 +102,117 @@ export function ProductGrid() {
     loadProducts()
   }, [])
 
-  useEffect(() => {
-    const handleCategoryFilter = (event: CustomEvent) => {
-      const { category, subcategory, csvCategory } = event.detail
-      setActiveFilter({ category, subcategory })
-      setSearchQuery("")
-      setCurrentPage(1)
+  const handleCategoryFilter = (event: CustomEvent) => {
+    const { category, subcategory, csvCategory } = event.detail
+    setActiveFilter({ category, subcategory })
+    setSearchQuery("")
+    setCurrentPage(1)
 
-      const filtered = products.filter((product) => {
-        const searchTerm = csvCategory || subcategory || category
+    const filtered = products.filter((product) => {
+      const searchTerm = csvCategory || subcategory || category
 
-        const categoryMatch = product.categories.toLowerCase().includes(searchTerm.toLowerCase())
-        const nameMatch = product.name.toLowerCase().includes(searchTerm.toLowerCase())
-        const brandMatch = product.brand.toLowerCase().includes(searchTerm.toLowerCase())
-        const tagMatch = product.tags.toLowerCase().includes(searchTerm.toLowerCase())
-        const descriptionMatch = stripHtmlTags(product.description).toLowerCase().includes(searchTerm.toLowerCase())
+      const categoryMatch = product.categories.toLowerCase().includes(searchTerm.toLowerCase())
+      const nameMatch = product.name.toLowerCase().includes(searchTerm.toLowerCase())
+      const brandMatch = product.brand.toLowerCase().includes(searchTerm.toLowerCase())
+      const tagMatch = product.tags.toLowerCase().includes(searchTerm.toLowerCase())
+      const descriptionMatch = stripHtmlTags(product.description).toLowerCase().includes(searchTerm.toLowerCase())
 
-        let specialMatch = false
+      let specialMatch = false
 
-        if (
-          searchTerm.toLowerCase().includes("makyaj") ||
-          searchTerm.toLowerCase().includes("ruj") ||
-          searchTerm.toLowerCase().includes("maskara") ||
-          searchTerm.toLowerCase().includes("fondöten")
-        ) {
-          specialMatch =
-            product.categories.toLowerCase().includes("makyaj") ||
-            product.categories.toLowerCase().includes("kozmetik") ||
-            product.name.toLowerCase().includes("ruj") ||
-            product.name.toLowerCase().includes("maskara") ||
-            product.name.toLowerCase().includes("fondöten")
-        }
-
-        if (searchTerm.toLowerCase().includes("cilt") || searchTerm.toLowerCase().includes("bakım")) {
-          specialMatch =
-            product.categories.toLowerCase().includes("cilt") ||
-            product.categories.toLowerCase().includes("bakım") ||
-            product.name.toLowerCase().includes("krem") ||
-            product.name.toLowerCase().includes("serum")
-        }
-
-        if (searchTerm.toLowerCase().includes("saç") || searchTerm.toLowerCase().includes("şampuan")) {
-          specialMatch =
-            product.categories.toLowerCase().includes("saç") ||
-            product.name.toLowerCase().includes("şampuan") ||
-            product.name.toLowerCase().includes("saç")
-        }
-
-        return categoryMatch || nameMatch || brandMatch || tagMatch || descriptionMatch || specialMatch
-      })
-
-      console.log(`Filtering for: ${category}, Found: ${filtered.length} products`)
-      setFilteredProducts(filtered)
-    }
-
-    const handleSearch = (event: CustomEvent) => {
-      const { query } = event.detail
-      setSearchQuery(query)
-      setActiveFilter(null)
-      setCurrentPage(1)
-
-      if (!query.trim()) {
-        setFilteredProducts(products)
-        return
+      if (
+        searchTerm.toLowerCase().includes("makyaj") ||
+        searchTerm.toLowerCase().includes("ruj") ||
+        searchTerm.toLowerCase().includes("maskara") ||
+        searchTerm.toLowerCase().includes("fondöten")
+      ) {
+        specialMatch =
+          product.categories.toLowerCase().includes("makyaj") ||
+          product.categories.toLowerCase().includes("kozmetik") ||
+          product.name.toLowerCase().includes("ruj") ||
+          product.name.toLowerCase().includes("maskara") ||
+          product.name.toLowerCase().includes("fondöten")
       }
 
-      const searchTerms = query
-        .toLowerCase()
-        .split(" ")
-        .filter((term) => term.length > 0)
+      if (searchTerm.toLowerCase().includes("cilt") || searchTerm.toLowerCase().includes("bakım")) {
+        specialMatch =
+          product.categories.toLowerCase().includes("cilt") ||
+          product.categories.toLowerCase().includes("bakım") ||
+          product.name.toLowerCase().includes("krem") ||
+          product.name.toLowerCase().includes("serum")
+      }
 
-      const filtered = products.filter((product) => {
-        const searchableText = [
-          product.name,
-          product.brand,
-          product.categories,
-          product.tags,
-          stripHtmlTags(product.description),
-        ]
-          .join(" ")
-          .toLowerCase()
+      if (searchTerm.toLowerCase().includes("saç") || searchTerm.toLowerCase().includes("şampuan")) {
+        specialMatch =
+          product.categories.toLowerCase().includes("saç") ||
+          product.name.toLowerCase().includes("şampuan") ||
+          product.name.toLowerCase().includes("saç")
+      }
 
-        return searchTerms.some((term) => searchableText.includes(term))
-      })
+      return categoryMatch || nameMatch || brandMatch || tagMatch || descriptionMatch || specialMatch
+    })
 
-      const scoredResults = filtered.map((product) => {
-        let score = 0
-        const productName = product.name.toLowerCase()
-        const productBrand = product.brand.toLowerCase()
+    console.log(`Filtering for: ${category}, Found: ${filtered.length} products`)
+    setFilteredProducts(filtered)
+  }
 
-        searchTerms.forEach((term) => {
-          if (productName.includes(term)) score += 10
-          if (productBrand.includes(term)) score += 8
-          if (product.categories.toLowerCase().includes(term)) score += 5
-          if (product.tags.toLowerCase().includes(term)) score += 3
-        })
+  const handleSearch = (event: CustomEvent) => {
+    const { query } = event.detail
+    setSearchQuery(query)
+    setActiveFilter(null)
+    setCurrentPage(1)
 
-        return { product, score }
-      })
-
-      const sortedResults = scoredResults.sort((a, b) => b.score - a.score).map((item) => item.product)
-
-      setFilteredProducts(sortedResults)
-    }
-
-    const handleClearSearch = () => {
-      setSearchQuery("")
-      setActiveFilter(null)
-      setCurrentPage(1)
+    if (!query.trim()) {
       setFilteredProducts(products)
+      return
     }
 
+    const searchTerms = query
+      .toLowerCase()
+      .split(" ")
+      .filter((term) => term.length > 0)
+
+    const filtered = products.filter((product) => {
+      const searchableText = [
+        product.name,
+        product.brand,
+        product.categories,
+        product.tags,
+        stripHtmlTags(product.description),
+      ]
+        .join(" ")
+        .toLowerCase()
+
+      return searchTerms.some((term) => searchableText.includes(term))
+    })
+
+    const scoredResults = filtered.map((product) => {
+      let score = 0
+      const productName = product.name.toLowerCase()
+      const productBrand = product.brand.toLowerCase()
+
+      searchTerms.forEach((term) => {
+        if (productName.includes(term)) score += 10
+        if (productBrand.includes(term)) score += 8
+        if (product.categories.toLowerCase().includes(term)) score += 5
+        if (product.tags.toLowerCase().includes(term)) score += 3
+      })
+
+      return { product, score }
+    })
+
+    const sortedResults = scoredResults.sort((a, b) => b.score - a.score).map((item) => item.product)
+
+    setFilteredProducts(sortedResults)
+  }
+
+  const handleClearSearch = () => {
+    setSearchQuery("")
+    setActiveFilter(null)
+    setCurrentPage(1)
+    setFilteredProducts(products)
+  }
+
+  useEffect(() => {
     window.addEventListener("categoryFilter", handleCategoryFilter as EventListener)
     window.addEventListener("searchProducts", handleSearch as EventListener)
     window.addEventListener("clearSearch", handleClearSearch as EventListener)
@@ -167,6 +225,11 @@ export function ProductGrid() {
   }, [products])
 
   const handleAddToCart = (product: Product) => {
+    const totalStock = product.stockMainWarehouse + product.stockAdana
+    if (totalStock <= 0) {
+      return
+    }
+
     addItem(product)
     setAddedItems((prev) => new Set(prev).add(product.id))
 
@@ -177,6 +240,13 @@ export function ProductGrid() {
         return newSet
       })
     }, 2000)
+  }
+
+  const handleProductClick = (product: Product) => {
+    const productDetailEvent = new CustomEvent("openProductDetail", {
+      detail: { product },
+    })
+    window.dispatchEvent(productDetailEvent)
   }
 
   const clearFilter = () => {
@@ -203,14 +273,36 @@ export function ProductGrid() {
     return safePrice * 1.2
   }
 
+  const getStockStatus = (product: Product) => {
+    const totalStock = product.stockMainWarehouse + product.stockAdana
+    if (totalStock === 0) return { label: "Stokta Yok", variant: "destructive" as const }
+    if (totalStock < 10) return { label: "Son Ürünler", variant: "secondary" as const }
+    return { label: "Stokta", variant: "default" as const }
+  }
+
   const totalPages = Math.ceil((filteredProducts?.length || 0) / productsPerPage)
   const startIndex = (currentPage - 1) * productsPerPage
   const endIndex = startIndex + productsPerPage
-  const currentProducts = (filteredProducts || []).slice(startIndex, endIndex)
 
-  const goToPage = (page: number) => {
-    setCurrentPage(page)
-    window.scrollTo({ top: 0, behavior: "smooth" })
+  let currentProducts = (filteredProducts || []).slice(startIndex, endIndex)
+
+  if (currentPage === 1 || currentPage === 5 || currentPage === totalPages) {
+    currentProducts = currentProducts.filter(
+      (product) => product.imageUrl && product.imageUrl.trim() !== "" && !product.imageUrl.includes("placeholder"),
+    )
+
+    if (currentProducts.length < productsPerPage) {
+      const allProductsWithImages = (filteredProducts || []).filter(
+        (product) => product.imageUrl && product.imageUrl.trim() !== "" && !product.imageUrl.includes("placeholder"),
+      )
+
+      const currentProductIds = new Set(currentProducts.map((p) => p.id))
+      const additionalProducts = allProductsWithImages
+        .filter((product) => !currentProductIds.has(product.id))
+        .slice(0, productsPerPage - currentProducts.length)
+
+      currentProducts = [...currentProducts, ...additionalProducts]
+    }
   }
 
   if (loading) {
@@ -242,17 +334,18 @@ export function ProductGrid() {
         <div className="mb-6 lg:mb-8">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h2 className="text-xl lg:text-2xl font-bold text-rawises-800">
+              <h2 className="text-xl lg:text-2xl font-bold text-green-800">
                 {activeFilter
                   ? `${activeFilter.subcategory || activeFilter.category} Ürünleri`
                   : searchQuery
                     ? `"${searchQuery}" Arama Sonuçları`
                     : "Öne Çıkan Ürünler"}
               </h2>
-              <p className="text-sm lg:text-base text-rawises-600">
+              <p className="text-sm lg:text-base text-green-600">
                 {activeFilter || searchQuery
                   ? `${filteredProducts?.length || 0} ürün bulundu`
                   : "En popüler makyaj ürünleri"}
+                {isConnected && <span className="ml-2 text-xs text-green-600">• Canlı stok takibi aktif</span>}
               </p>
             </div>
 
@@ -262,7 +355,7 @@ export function ProductGrid() {
                   variant="outline"
                   size="sm"
                   onClick={clearFilter}
-                  className="flex items-center gap-2 border-rawises-300 text-rawises-700 hover:bg-rawises-50 bg-transparent"
+                  className="flex items-center gap-2 border-green-300 text-green-700 hover:bg-green-50 bg-transparent"
                 >
                   <X className="w-4 h-4" />
                   <span className="hidden sm:inline">Temizle</span>
@@ -273,8 +366,8 @@ export function ProductGrid() {
 
           {(activeFilter || searchQuery) && (
             <div className="flex items-center gap-2 mb-4">
-              <Filter className="w-4 h-4 text-rawises-600" />
-              <Badge variant="secondary" className="bg-rawises-100 text-rawises-800">
+              <Filter className="w-4 h-4 text-green-600" />
+              <Badge variant="secondary" className="bg-green-100 text-green-800">
                 {searchQuery
                   ? `Arama: ${searchQuery}`
                   : `${activeFilter?.category}${activeFilter?.subcategory ? ` > ${activeFilter.subcategory}` : ""}`}
@@ -291,19 +384,26 @@ export function ProductGrid() {
               const productSlug = createProductSlug(product)
               const priceWithVAT = calculatePriceWithVAT(product.discountPrice || 0)
               const salePriceWithVAT = calculatePriceWithVAT(product.salePrice || 0)
+              const stockStatus = getStockStatus(product)
+              const totalStock = product.stockMainWarehouse + product.stockAdana
+              const isOutOfStock = totalStock === 0
 
               return (
                 <Card
                   key={product.id}
-                  className="group hover:shadow-lg transition-all duration-300 border-rawises-100 hover:border-rawises-300 flex flex-col h-full"
+                  className={`group hover:shadow-lg transition-all duration-300 border-green-100 hover:border-green-300 flex flex-col h-full ${
+                    isOutOfStock ? "opacity-75" : ""
+                  }`}
                 >
-                  <Link href={`/product/${product.id}/${productSlug}`} className="block">
+                  <div className="block cursor-pointer" onClick={() => handleProductClick(product)}>
                     <div className="relative aspect-square overflow-hidden rounded-t-lg">
                       <Image
                         src={product.imageUrl || "/placeholder.svg"}
                         alt={product.name}
                         fill
-                        className="object-cover group-hover:scale-105 transition-transform duration-300"
+                        className={`object-cover group-hover:scale-105 transition-transform duration-300 ${
+                          isOutOfStock ? "grayscale" : ""
+                        }`}
                         crossOrigin="anonymous"
                         onError={(e) => {
                           const target = e.target as HTMLImageElement
@@ -311,46 +411,50 @@ export function ProductGrid() {
                         }}
                       />
                       <div className="absolute top-1 sm:top-2 left-1 sm:left-2">
-                        <Badge variant="destructive" className="bg-accent-500 hover:bg-accent-600 text-xs px-1 sm:px-2">
+                        <Badge variant="destructive" className="bg-green-500 hover:bg-green-600 text-xs px-1 sm:px-2">
                           %{calculateDiscountPercentage(product.salePrice, product.discountPrice)}
                         </Badge>
                       </div>
                       <div className="absolute top-1 sm:top-2 right-1 sm:right-2">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="bg-white/80 hover:bg-white text-rawises-600 hover:text-brand-500 h-6 w-6 sm:h-8 sm:w-8 p-0"
-                          onClick={(e) => e.preventDefault()}
-                        >
-                          <Heart className="w-3 h-3 sm:w-4 sm:h-4" />
-                        </Button>
+                        <Badge variant={stockStatus.variant} className="text-xs px-1 sm:px-2">
+                          {stockStatus.label}
+                        </Badge>
                       </div>
+                      {isOutOfStock && (
+                        <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                          <span className="text-white font-semibold text-sm">Stokta Yok</span>
+                        </div>
+                      )}
                     </div>
-                  </Link>
+                  </div>
 
                   <CardContent className="p-2 sm:p-3 lg:p-4 flex flex-col flex-grow">
                     <div className="mb-1 sm:mb-2">
-                      <Badge variant="outline" className="text-xs border-rawises-200 text-rawises-700 px-1 sm:px-2">
+                      <Badge variant="outline" className="text-xs border-green-200 text-green-700 px-1 sm:px-2">
                         {product.brand}
                       </Badge>
                     </div>
 
-                    <Link href={`/product/${product.id}/${productSlug}`}>
-                      <h3 className="font-semibold text-xs sm:text-sm mb-1 sm:mb-2 line-clamp-2 text-rawises-800 flex-grow leading-tight hover:text-rawises-600 transition-colors">
+                    <div className="cursor-pointer" onClick={() => handleProductClick(product)}>
+                      <h3 className="font-semibold text-xs sm:text-sm mb-1 sm:mb-2 line-clamp-2 text-green-800 flex-grow leading-tight hover:text-green-600 transition-colors">
                         {product.name}
                       </h3>
-                    </Link>
+                    </div>
 
-                    <p className="text-xs text-rawises-600 mb-2 sm:mb-3 line-clamp-1 hidden sm:block">
+                    <p className="text-xs text-green-600 mb-2 sm:mb-3 line-clamp-1 hidden sm:block">
                       {stripHtmlTags(product.description).substring(0, 40)}...
                     </p>
+
+                    {!isOutOfStock && totalStock < 20 && (
+                      <p className="text-xs text-orange-600 mb-2">Sadece {totalStock} adet kaldı!</p>
+                    )}
 
                     <div className="flex flex-col gap-1 mb-2 sm:mb-3">
                       <div className="flex items-center justify-between">
                         <span className="text-xs text-gray-500">KDV Hariç:</span>
                         <div className="text-right">
                           <span className="text-xs line-through text-gray-400">{product.salePrice || 0} TL</span>
-                          <div className="text-sm font-medium text-rawises-600">{product.discountPrice || 0} TL</div>
+                          <div className="text-sm font-medium text-green-600">{product.discountPrice || 0} TL</div>
                         </div>
                       </div>
 
@@ -363,7 +467,7 @@ export function ProductGrid() {
                           <span className="text-xs line-through text-gray-400">
                             {(salePriceWithVAT || 0).toFixed(2)} TL
                           </span>
-                          <div className="text-sm sm:text-base lg:text-lg font-bold bg-gradient-to-r from-rawises-600 to-brand-500 bg-clip-text text-transparent">
+                          <div className="text-sm sm:text-base lg:text-lg font-bold bg-gradient-to-r from-green-600 to-emerald-500 bg-clip-text text-transparent">
                             {(priceWithVAT || 0).toFixed(2)} TL
                           </div>
                         </div>
@@ -373,14 +477,22 @@ export function ProductGrid() {
                     <div className="mt-auto">
                       <Button
                         className={`w-full transition-all duration-300 text-xs sm:text-sm py-1 sm:py-2 ${
-                          isAdded
-                            ? "bg-accent-600 hover:bg-accent-700"
-                            : "bg-gradient-to-r from-rawises-600 to-brand-500 hover:from-rawises-700 hover:to-brand-600"
+                          isOutOfStock
+                            ? "bg-gray-400 cursor-not-allowed"
+                            : isAdded
+                              ? "bg-green-600 hover:bg-green-700"
+                              : "bg-gradient-to-r from-green-600 to-emerald-500 hover:from-green-700 hover:to-emerald-600"
                         }`}
                         size="sm"
-                        onClick={() => handleAddToCart(product)}
+                        disabled={isOutOfStock}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleAddToCart(product)
+                        }}
                       >
-                        {isAdded ? (
+                        {isOutOfStock ? (
+                          "Stokta Yok"
+                        ) : isAdded ? (
                           <>
                             <Check className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
                             <span className="hidden sm:inline">Sepete Eklendi</span>
@@ -408,7 +520,7 @@ export function ProductGrid() {
               size="sm"
               onClick={() => goToPage(currentPage - 1)}
               disabled={currentPage === 1}
-              className="border-rawises-300 text-rawises-700 hover:bg-rawises-50"
+              className="border-green-300 text-green-700 hover:bg-green-50"
             >
               Önceki
             </Button>
@@ -426,8 +538,8 @@ export function ProductGrid() {
                     onClick={() => goToPage(page)}
                     className={
                       isCurrentPage
-                        ? "bg-rawises-600 hover:bg-rawises-700"
-                        : "border-rawises-300 text-rawises-700 hover:bg-rawises-50"
+                        ? "bg-green-600 hover:bg-green-700"
+                        : "border-green-300 text-green-700 hover:bg-green-50"
                     }
                   >
                     {page}
@@ -448,7 +560,7 @@ export function ProductGrid() {
               size="sm"
               onClick={() => goToPage(currentPage + 1)}
               disabled={currentPage === totalPages}
-              className="border-rawises-300 text-rawises-700 hover:bg-rawises-50"
+              className="border-green-300 text-green-700 hover:bg-green-50"
             >
               Sonraki
             </Button>
@@ -466,7 +578,7 @@ export function ProductGrid() {
                 ? `"${searchQuery}" araması için sonuç bulunamadı.`
                 : `${activeFilter?.subcategory || activeFilter?.category} kategorisinde ürün bulunamadı.`}
             </p>
-            <Button onClick={clearFilter} className="bg-rawises-600 hover:bg-rawises-700">
+            <Button onClick={clearFilter} className="bg-green-600 hover:bg-green-700">
               Tüm Ürünleri Gör
             </Button>
           </div>

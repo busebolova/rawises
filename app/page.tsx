@@ -31,7 +31,7 @@ export default function HomePage() {
       setIsLoading(false)
     }
 
-    setTimeout(checkWelcomeStatus, 100)
+    checkWelcomeStatus()
   }, [])
 
   useEffect(() => {

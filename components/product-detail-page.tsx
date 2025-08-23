@@ -32,21 +32,49 @@ interface ProductDetailPageProps {
 }
 
 export function ProductDetailPage({ product, relatedProducts }: ProductDetailPageProps) {
+  console.log("[v0] ProductDetailPage received product:", product)
+  console.log("[v0] Product name:", product?.name)
+  console.log("[v0] Product ID:", product?.id)
+
   const [quantity, setQuantity] = useState(1)
   const [isAdded, setIsAdded] = useState(false)
   const [selectedImage, setSelectedImage] = useState(0)
   const { addItem } = useCartStore()
   const router = useRouter()
 
-  const handleAddToCart = () => {
-    for (let i = 0; i < quantity; i++) {
-      addItem(product)
-    }
-    setIsAdded(true)
-    setTimeout(() => setIsAdded(false), 2000)
+  if (!product) {
+    console.log("[v0] ProductDetailPage: No product received, showing 404")
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-gray-800 mb-4">Ürün Bulunamadı</h1>
+          <p className="text-gray-600 mb-4">Aradığınız ürün mevcut değil.</p>
+          <Button onClick={() => router.push("/")} className="bg-rawises-600 hover:bg-rawises-700">
+            Ana Sayfaya Dön
+          </Button>
+        </div>
+      </div>
+    )
   }
 
-  const discountPercentage = calculateDiscountPercentage(product.salePrice, product.discountPrice)
+  console.log("[v0] ProductDetailPage: Rendering product successfully:", product.name)
+
+  const handleAddToCart = () => {
+    try {
+      for (let i = 0; i < quantity; i++) {
+        addItem(product)
+      }
+      setIsAdded(true)
+      setTimeout(() => setIsAdded(false), 2000)
+    } catch (error) {
+      console.error("[v0] Add to cart error:", error)
+    }
+  }
+
+  const discountPercentage =
+    product.salePrice > 0 && product.discountPrice > 0
+      ? calculateDiscountPercentage(product.salePrice, product.discountPrice)
+      : 0
 
   // Ürün görselleri (şimdilik tek görsel, gelecekte çoklu görsel için hazır)
   const productImages = [product.imageUrl || "/placeholder.svg"]
@@ -92,7 +120,7 @@ export function ProductDetailPage({ product, relatedProducts }: ProductDetailPag
           <div className="space-y-4">
             <div className="relative aspect-square overflow-hidden rounded-lg bg-gray-50 border">
               <Image
-                src={productImages[selectedImage] || "/placeholder.svg"}
+                src={productImages[selectedImage] || "/placeholder.svg?height=600&width=600"}
                 alt={product.name}
                 fill
                 className="object-cover"
@@ -138,9 +166,11 @@ export function ProductDetailPage({ product, relatedProducts }: ProductDetailPag
           {/* Product Info */}
           <div className="space-y-6">
             <div>
-              <Badge variant="outline" className="mb-3 border-rawises-200 text-rawises-700">
-                {product.brand}
-              </Badge>
+              {product.brand && (
+                <Badge variant="outline" className="mb-3 border-rawises-200 text-rawises-700">
+                  {product.brand}
+                </Badge>
+              )}
               <h1 className="text-2xl lg:text-3xl font-bold text-rawises-800 mb-4 leading-tight">{product.name}</h1>
 
               {/* Rating */}
@@ -160,11 +190,11 @@ export function ProductDetailPage({ product, relatedProducts }: ProductDetailPag
 
               {/* Price */}
               <div className="flex items-center gap-4 mb-6">
-                {product.salePrice > product.discountPrice && (
-                  <span className="text-xl line-through text-gray-400">{product.salePrice} TL</span>
+                {product.salePrice > product.discountPrice && product.salePrice > 0 && (
+                  <span className="text-xl line-through text-gray-400">{product.salePrice.toFixed(2)} TL</span>
                 )}
                 <span className="text-3xl lg:text-4xl font-bold bg-gradient-to-r from-rawises-600 to-brand-500 bg-clip-text text-transparent">
-                  {product.discountPrice} TL
+                  {(product.discountPrice || product.salePrice || 0).toFixed(2)} TL
                 </span>
               </div>
             </div>
@@ -172,9 +202,13 @@ export function ProductDetailPage({ product, relatedProducts }: ProductDetailPag
             {/* Stock and Shipping Info */}
             <div className="space-y-3">
               <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                <div
+                  className={`w-2 h-2 rounded-full ${(product.stockMainWarehouse + product.stockAdana) > 0 ? "bg-green-500" : "bg-red-500"}`}
+                ></div>
                 <span className="text-sm text-gray-600">
-                  Stokta ({product.stockMainWarehouse + product.stockAdana} adet)
+                  {product.stockMainWarehouse + product.stockAdana > 0
+                    ? `Stokta (${product.stockMainWarehouse + product.stockAdana} adet)`
+                    : "Stokta Yok"}
                 </span>
               </div>
 
@@ -222,11 +256,12 @@ export function ProductDetailPage({ product, relatedProducts }: ProductDetailPag
               <div className="flex gap-3">
                 <Button
                   onClick={handleAddToCart}
+                  disabled={product.stockMainWarehouse + product.stockAdana === 0}
                   className={`flex-1 ${
                     isAdded
                       ? "bg-green-600 hover:bg-green-700"
                       : "bg-gradient-to-r from-rawises-600 to-brand-500 hover:from-rawises-700 hover:to-brand-600"
-                  }`}
+                  } disabled:opacity-50 disabled:cursor-not-allowed`}
                   size="lg"
                 >
                   {isAdded ? (
@@ -237,7 +272,9 @@ export function ProductDetailPage({ product, relatedProducts }: ProductDetailPag
                   ) : (
                     <>
                       <ShoppingCart className="w-5 h-5 mr-2" />
-                      Sepete Ekle ({((product.discountPrice || 0) * quantity).toFixed(2)} TL)
+                      {product.stockMainWarehouse + product.stockAdana > 0
+                        ? `Sepete Ekle (${((product.discountPrice || product.salePrice || 0) * quantity).toFixed(2)} TL)`
+                        : "Stokta Yok"}
                     </>
                   )}
                 </Button>
@@ -296,12 +333,17 @@ export function ProductDetailPage({ product, relatedProducts }: ProductDetailPag
             <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 lg:gap-6">
               {relatedProducts.map((relatedProduct) => {
                 const relatedSlug = createProductSlug(relatedProduct)
+                const relatedDiscountPercentage =
+                  relatedProduct.salePrice > 0 && relatedProduct.discountPrice > 0
+                    ? calculateDiscountPercentage(relatedProduct.salePrice, relatedProduct.discountPrice)
+                    : 0
+
                 return (
                   <Card key={relatedProduct.id} className="group hover:shadow-lg transition-all duration-300">
                     <Link href={`/product/${relatedProduct.id}/${relatedSlug}`}>
                       <div className="relative aspect-square overflow-hidden rounded-t-lg">
                         <Image
-                          src={relatedProduct.imageUrl || "/placeholder.svg"}
+                          src={relatedProduct.imageUrl || "/placeholder.svg?height=300&width=300"}
                           alt={relatedProduct.name}
                           fill
                           className="object-cover group-hover:scale-105 transition-transform duration-300"
@@ -311,17 +353,21 @@ export function ProductDetailPage({ product, relatedProducts }: ProductDetailPag
                             target.src = "/placeholder.svg?height=300&width=300"
                           }}
                         />
-                        <div className="absolute top-2 left-2">
-                          <Badge variant="destructive" className="bg-accent-500 text-xs px-2">
-                            %{calculateDiscountPercentage(relatedProduct.salePrice, relatedProduct.discountPrice)}
-                          </Badge>
-                        </div>
+                        {relatedDiscountPercentage > 0 && (
+                          <div className="absolute top-2 left-2">
+                            <Badge variant="destructive" className="bg-accent-500 text-xs px-2">
+                              %{relatedDiscountPercentage}
+                            </Badge>
+                          </div>
+                        )}
                       </div>
                     </Link>
                     <CardContent className="p-4">
-                      <Badge variant="outline" className="text-xs border-rawises-200 text-rawises-700 mb-2">
-                        {relatedProduct.brand}
-                      </Badge>
+                      {relatedProduct.brand && (
+                        <Badge variant="outline" className="text-xs border-rawises-200 text-rawises-700 mb-2">
+                          {relatedProduct.brand}
+                        </Badge>
+                      )}
                       <Link href={`/product/${relatedProduct.id}/${relatedSlug}`}>
                         <h3 className="font-semibold text-sm mb-2 line-clamp-2 text-rawises-800 hover:text-rawises-600 transition-colors">
                           {relatedProduct.name}
@@ -329,11 +375,13 @@ export function ProductDetailPage({ product, relatedProducts }: ProductDetailPag
                       </Link>
                       <div className="flex items-center justify-between">
                         <div>
-                          <span className="text-xs line-through text-gray-400 block">
-                            {relatedProduct.salePrice} TL
-                          </span>
+                          {relatedProduct.salePrice > relatedProduct.discountPrice && relatedProduct.salePrice > 0 && (
+                            <span className="text-xs line-through text-gray-400 block">
+                              {relatedProduct.salePrice.toFixed(2)} TL
+                            </span>
+                          )}
                           <span className="text-lg font-bold bg-gradient-to-r from-rawises-600 to-brand-500 bg-clip-text text-transparent">
-                            {relatedProduct.discountPrice} TL
+                            {(relatedProduct.discountPrice || relatedProduct.salePrice || 0).toFixed(2)} TL
                           </span>
                         </div>
                         <Button

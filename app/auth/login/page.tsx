@@ -12,6 +12,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import Image from "next/image"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { useAuth } from "@/contexts/auth-context"
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
@@ -21,13 +22,15 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [errors, setErrors] = useState<{ email?: string; password?: string; general?: string }>({})
   const router = useRouter()
+  const { signIn, signInWithGoogle } = useAuth()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
     setErrors({})
 
-    // Basit validasyon
+    console.log("[v0] Login attempt started", { email })
+
     const newErrors: { email?: string; password?: string; general?: string } = {}
 
     if (!email) {
@@ -45,36 +48,41 @@ export default function LoginPage() {
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors)
       setIsLoading(false)
+      console.log("[v0] Login validation failed", newErrors)
       return
     }
 
-    // Simulated login - gerçek uygulamada API çağrısı yapılacak
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1500)) // Simulated API call
+      console.log("[v0] Calling signIn function")
+      const { error } = await signIn(email, password)
 
-      // Demo için basit kontrol
-      if (email === "demo@rawises.com" && password === "123456") {
-        // Başarılı giriş
-        localStorage.setItem("user", JSON.stringify({ email, name: "Demo Kullanıcı" }))
-        router.push("/")
+      if (error) {
+        console.log("[v0] Login error:", error.message)
+        setErrors({ general: "E-posta veya şifre hatalı: " + error.message })
       } else {
-        setErrors({ general: "E-posta veya şifre hatalı" })
+        console.log("[v0] Login successful, redirecting to home")
+        router.push("/")
       }
     } catch (error) {
+      console.log("[v0] Login exception:", error)
       setErrors({ general: "Giriş yapılırken bir hata oluştu" })
     } finally {
       setIsLoading(false)
     }
   }
 
-  const handleGoogleLogin = () => {
-    // Google OAuth simülasyonu
-    console.log("Google ile giriş yapılıyor...")
-    // Gerçek uygulamada Google OAuth entegrasyonu yapılacak
+  const handleGoogleLogin = async () => {
+    console.log("[v0] Google login attempt")
+    try {
+      await signInWithGoogle()
+    } catch (error) {
+      console.log("[v0] Google login error:", error)
+      setErrors({ general: "Google ile giriş yapılırken hata oluştu" })
+    }
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-rawises-50 via-white to-brand-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-white to-purple-50 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         {/* Back Button */}
         <div className="mb-6">
@@ -82,7 +90,7 @@ export default function LoginPage() {
             variant="ghost"
             size="sm"
             onClick={() => router.back()}
-            className="flex items-center gap-2 text-rawises-700 hover:bg-rawises-100"
+            className="flex items-center gap-2 text-pink-700 hover:bg-pink-100"
           >
             <ArrowLeft className="w-4 h-4" />
             Geri Dön
@@ -94,8 +102,8 @@ export default function LoginPage() {
             <div className="flex justify-center mb-4">
               <Image src="/rawises-logo.png" alt="Rawises" width={120} height={40} className="h-10 w-auto" />
             </div>
-            <CardTitle className="text-2xl font-bold text-rawises-800">Hoş Geldiniz</CardTitle>
-            <p className="text-rawises-600 mt-2">Hesabınıza giriş yapın</p>
+            <CardTitle className="text-2xl font-bold text-pink-800">Hoş Geldiniz</CardTitle>
+            <p className="text-pink-600 mt-2">Hesabınıza giriş yapın</p>
           </CardHeader>
 
           <CardContent className="space-y-6">
@@ -106,28 +114,21 @@ export default function LoginPage() {
               </div>
             )}
 
-            {/* Demo Info */}
-            <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-lg text-sm">
-              <p className="font-medium mb-1">Demo Hesap:</p>
-              <p>E-posta: demo@rawises.com</p>
-              <p>Şifre: 123456</p>
-            </div>
-
             <form onSubmit={handleSubmit} className="space-y-4">
               {/* Email Input */}
               <div className="space-y-2">
-                <label htmlFor="email" className="text-sm font-medium text-rawises-800">
+                <label htmlFor="email" className="text-sm font-medium text-pink-800">
                   E-posta Adresi
                 </label>
                 <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-rawises-400 w-4 h-4" />
+                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-pink-400 w-4 h-4" />
                   <Input
                     id="email"
                     type="email"
                     placeholder="ornek@email.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className={`pl-10 border-rawises-200 focus:border-rawises-500 focus:ring-rawises-500 ${
+                    className={`pl-10 border-pink-200 focus:border-pink-500 focus:ring-pink-500 ${
                       errors.email ? "border-red-500" : ""
                     }`}
                   />
@@ -137,18 +138,18 @@ export default function LoginPage() {
 
               {/* Password Input */}
               <div className="space-y-2">
-                <label htmlFor="password" className="text-sm font-medium text-rawises-800">
+                <label htmlFor="password" className="text-sm font-medium text-pink-800">
                   Şifre
                 </label>
                 <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-rawises-400 w-4 h-4" />
+                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-pink-400 w-4 h-4" />
                   <Input
                     id="password"
                     type={showPassword ? "text" : "password"}
                     placeholder="Şifrenizi giriniz"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className={`pl-10 pr-10 border-rawises-200 focus:border-rawises-500 focus:ring-rawises-500 ${
+                    className={`pl-10 pr-10 border-pink-200 focus:border-pink-500 focus:ring-pink-500 ${
                       errors.password ? "border-red-500" : ""
                     }`}
                   />
@@ -156,7 +157,7 @@ export default function LoginPage() {
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="absolute right-2 top-1/2 transform -translate-y-1/2 text-rawises-400 hover:text-rawises-600"
+                    className="absolute right-2 top-1/2 transform -translate-y-1/2 text-pink-400 hover:text-pink-600"
                     onClick={() => setShowPassword(!showPassword)}
                   >
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -173,11 +174,11 @@ export default function LoginPage() {
                     checked={rememberMe}
                     onCheckedChange={(checked) => setRememberMe(checked as boolean)}
                   />
-                  <label htmlFor="remember" className="text-sm text-rawises-700">
+                  <label htmlFor="remember" className="text-sm text-pink-700">
                     Beni hatırla
                   </label>
                 </div>
-                <Link href="/auth/forgot-password" className="text-sm text-rawises-600 hover:text-rawises-800">
+                <Link href="/auth/forgot-password" className="text-sm text-pink-600 hover:text-pink-800">
                   Şifremi unuttum
                 </Link>
               </div>
@@ -185,7 +186,7 @@ export default function LoginPage() {
               {/* Login Button */}
               <Button
                 type="submit"
-                className="w-full bg-gradient-to-r from-rawises-600 to-brand-500 hover:from-rawises-700 hover:to-brand-600 text-white font-medium py-3"
+                className="w-full bg-gradient-to-r from-pink-600 to-purple-500 hover:from-pink-700 hover:to-purple-600 text-white font-medium py-3"
                 disabled={isLoading}
               >
                 {isLoading ? "Giriş yapılıyor..." : "Giriş Yap"}
@@ -196,7 +197,7 @@ export default function LoginPage() {
             <div className="relative">
               <Separator />
               <div className="absolute inset-0 flex justify-center">
-                <span className="bg-white px-2 text-sm text-rawises-500">veya</span>
+                <span className="bg-white px-2 text-sm text-pink-500">veya</span>
               </div>
             </div>
 
@@ -204,7 +205,7 @@ export default function LoginPage() {
             <Button
               type="button"
               variant="outline"
-              className="w-full border-rawises-200 hover:bg-rawises-50 py-3 bg-transparent"
+              className="w-full border-pink-200 hover:bg-pink-50 py-3 bg-transparent"
               onClick={handleGoogleLogin}
             >
               <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
@@ -230,9 +231,9 @@ export default function LoginPage() {
 
             {/* Sign Up Link */}
             <div className="text-center">
-              <p className="text-sm text-rawises-600">
+              <p className="text-sm text-pink-600">
                 Hesabınız yok mu?{" "}
-                <Link href="/auth/register" className="text-rawises-700 hover:text-rawises-900 font-medium">
+                <Link href="/auth/register" className="text-pink-700 hover:text-pink-900 font-medium">
                   Üye Ol
                 </Link>
               </p>

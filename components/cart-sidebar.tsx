@@ -1,5 +1,5 @@
 "use client"
-import { X, Plus, Minus, ShoppingBag, Calculator } from "lucide-react"
+import { X, Plus, Minus, ShoppingBag, Calculator, Users } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
@@ -7,6 +7,7 @@ import { useCartStore } from "@/lib/cart-store"
 import { CheckoutModal } from "@/components/checkout-modal"
 import { useState, useEffect } from "react"
 import Image from "next/image"
+import Link from "next/link"
 
 interface CartSidebarProps {
   isOpen: boolean
@@ -20,6 +21,9 @@ export function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
     totalPrice,
     totalPriceWithoutVAT,
     vatAmount,
+    memberDiscount,
+    memberDiscountAmount,
+    finalTotal,
     updateQuantity,
     removeItem,
     clearCart,
@@ -27,9 +31,14 @@ export function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
   } = useCartStore()
   const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState(false)
   const [mounted, setMounted] = useState(false)
+  const [user, setUser] = useState<any>(null)
 
   useEffect(() => {
     setMounted(true)
+    const userData = localStorage.getItem("user")
+    if (userData) {
+      setUser(JSON.parse(userData))
+    }
   }, [])
 
   if (!isOpen) return null
@@ -44,6 +53,7 @@ export function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
               <div className="flex items-center gap-2">
                 <ShoppingBag className="w-5 h-5" />
                 <h2 className="text-lg font-semibold">Sepetim</h2>
+                <Badge variant="secondary">{totalItems}</Badge>
               </div>
               <Button variant="ghost" size="sm" onClick={onClose}>
                 <X className="w-4 h-4" />
@@ -160,26 +170,69 @@ export function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
                   <span className="text-gray-600">Ara Toplam (KDV Hariç):</span>
                   <span className="font-medium">{totalPriceWithoutVAT.toFixed(2)} TL</span>
                 </div>
+                {user && memberDiscount > 0 && (
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-green-600 flex items-center gap-1">
+                      <Users className="w-3 h-3" />
+                      Üye İndirimi (-%{memberDiscount}):
+                    </span>
+                    <span className="font-medium text-green-600">-{memberDiscountAmount.toFixed(2)} TL</span>
+                  </div>
+                )}
                 <div className="flex justify-between items-center text-sm">
                   <span className="text-gray-600 flex items-center gap-1">
                     <Calculator className="w-3 h-3" />
                     KDV (%20):
                   </span>
-                  <span className="font-medium text-orange-600">{vatAmount.toFixed(2)} TL</span>
+                  <span className="font-medium text-orange-600">
+                    {((finalTotal || totalPrice) - (totalPriceWithoutVAT - memberDiscountAmount)).toFixed(2)} TL
+                  </span>
                 </div>
                 <Separator />
                 <div className="flex justify-between items-center">
                   <span className="text-lg font-semibold">Toplam (KDV Dahil):</span>
-                  <span className="text-xl font-bold text-purple-600">{totalPrice.toFixed(2)} TL</span>
+                  <div className="text-right">
+                    {memberDiscount > 0 && (
+                      <div className="text-sm text-gray-500 line-through">{totalPrice.toFixed(2)} TL</div>
+                    )}
+                    <span className="text-xl font-bold text-purple-600">
+                      {(finalTotal || totalPrice).toFixed(2)} TL
+                    </span>
+                  </div>
                 </div>
               </div>
+
+              {user && memberDiscount > 0 && (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                  <div className="flex items-center gap-2 text-green-800">
+                    <Users className="w-4 h-4" />
+                    <span className="text-sm font-medium">
+                      Üye indirimi uygulandı! {memberDiscountAmount.toFixed(2)} TL tasarruf ettiniz.
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {!user && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                  <div className="flex items-center gap-2 text-blue-800">
+                    <Users className="w-4 h-4" />
+                    <span className="text-sm">
+                      <Link href="/auth/login" className="font-medium hover:underline">
+                        Giriş yapın
+                      </Link>{" "}
+                      ve %15 üye indirimi kazanın!
+                    </span>
+                  </div>
+                </div>
+              )}
 
               <div className="space-y-2">
                 <Button
                   className="w-full bg-gradient-to-r from-rawises-600 to-brand-500 hover:from-rawises-700 hover:to-brand-600"
                   onClick={handleCheckout}
                 >
-                  Sepeti Onayla ({totalPrice.toFixed(2)} TL)
+                  Sepeti Onayla ({(finalTotal || totalPrice).toFixed(2)} TL)
                 </Button>
                 <Button variant="outline" className="w-full bg-transparent" onClick={clearCart}>
                   Sepeti Temizle
@@ -189,6 +242,7 @@ export function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
               {/* VAT Info */}
               <div className="text-xs text-gray-500 text-center">
                 <p>* Tüm fiyatlara %20 KDV dahildir</p>
+                {user && <p>* Üye indirimi KDV öncesi uygulanır</p>}
               </div>
             </div>
           )}

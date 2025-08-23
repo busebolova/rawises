@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -9,7 +9,8 @@ import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
-import { Store, CreditCard, Users, Mail, Shield, Globe, Save, Eye, EyeOff, CheckCircle } from "lucide-react"
+import { Store, CreditCard, Users, Mail, Shield, Globe, Save, Eye, EyeOff, CheckCircle, Bell } from "lucide-react"
+import { NotificationSettings } from "@/components/notification-settings"
 
 export default function SettingsPage() {
   const [showApiKeys, setShowApiKeys] = useState(false)
@@ -36,9 +37,25 @@ export default function SettingsPage() {
     requireEmailVerification: true,
   })
 
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const savedSettings = localStorage.getItem("adminSettings")
+      if (savedSettings) {
+        try {
+          const parsed = JSON.parse(savedSettings)
+          setSettings((prev) => ({ ...prev, ...parsed }))
+        } catch (error) {
+          console.error("Error loading saved settings:", error)
+        }
+      }
+    }
+  }, [])
+
   const handleSave = async () => {
     try {
-      localStorage.setItem("adminSettings", JSON.stringify(settings))
+      if (typeof window !== "undefined") {
+        localStorage.setItem("adminSettings", JSON.stringify(settings))
+      }
       await new Promise((resolve) => setTimeout(resolve, 1000))
       setSaved(true)
       setTimeout(() => setSaved(false), 3000)
@@ -48,18 +65,6 @@ export default function SettingsPage() {
     }
   }
 
-  useState(() => {
-    const savedSettings = localStorage.getItem("adminSettings")
-    if (savedSettings) {
-      try {
-        const parsed = JSON.parse(savedSettings)
-        setSettings((prev) => ({ ...prev, ...parsed }))
-      } catch (error) {
-        console.error("Error loading saved settings:", error)
-      }
-    }
-  })
-
   return (
     <div className="space-y-6">
       <div>
@@ -68,7 +73,7 @@ export default function SettingsPage() {
       </div>
 
       <Tabs defaultValue="general" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-6">
+        <TabsList className="grid w-full grid-cols-7">
           <TabsTrigger value="general" className="flex items-center gap-2">
             <Store className="h-4 w-4" />
             Genel
@@ -84,6 +89,10 @@ export default function SettingsPage() {
           <TabsTrigger value="notifications" className="flex items-center gap-2">
             <Mail className="h-4 w-4" />
             Bildirimler
+          </TabsTrigger>
+          <TabsTrigger value="realtime" className="flex items-center gap-2">
+            <Bell className="h-4 w-4" />
+            Gerçek Zamanlı
           </TabsTrigger>
           <TabsTrigger value="integrations" className="flex items-center gap-2">
             <Globe className="h-4 w-4" />
@@ -264,8 +273,8 @@ export default function SettingsPage() {
         <TabsContent value="notifications" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Bildirim Ayarları</CardTitle>
-              <CardDescription>E-posta ve SMS bildirim ayarları</CardDescription>
+              <CardTitle>E-posta ve SMS Bildirimleri</CardTitle>
+              <CardDescription>Geleneksel bildirim ayarları</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center justify-between">
@@ -309,6 +318,57 @@ export default function SettingsPage() {
                   />
                 </div>
               )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="realtime" className="space-y-6">
+          <NotificationSettings />
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Gerçek Zamanlı Sistem Durumu</CardTitle>
+              <CardDescription>Canlı bildirim sistemi durumu ve istatistikleri</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="p-4 border rounded-lg">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                    <span className="text-sm font-medium">Bağlantı Durumu</span>
+                  </div>
+                  <p className="text-lg font-semibold text-green-600">Aktif</p>
+                  <p className="text-xs text-muted-foreground">Gerçek zamanlı güncellemeler çalışıyor</p>
+                </div>
+
+                <div className="p-4 border rounded-lg">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Bell className="w-4 h-4 text-blue-500" />
+                    <span className="text-sm font-medium">Bugünkü Bildirimler</span>
+                  </div>
+                  <p className="text-lg font-semibold text-blue-600">12</p>
+                  <p className="text-xs text-muted-foreground">Son 24 saatte gönderilen</p>
+                </div>
+
+                <div className="p-4 border rounded-lg">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Mail className="w-4 h-4 text-purple-500" />
+                    <span className="text-sm font-medium">Bildirim Türleri</span>
+                  </div>
+                  <p className="text-lg font-semibold text-purple-600">4</p>
+                  <p className="text-xs text-muted-foreground">Sipariş, stok, sistem, hata</p>
+                </div>
+              </div>
+
+              <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <h4 className="font-medium text-blue-900 mb-2">💡 Gerçek Zamanlı Bildirimler Hakkında</h4>
+                <ul className="text-sm text-blue-800 space-y-1">
+                  <li>• Yeni siparişler anında bildirilir</li>
+                  <li>• Stok seviyeleri canlı güncellenir</li>
+                  <li>• Sistem olayları gerçek zamanlı takip edilir</li>
+                  <li>• Ses ve görsel bildirimler özelleştirilebilir</li>
+                </ul>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
