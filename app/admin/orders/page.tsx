@@ -331,7 +331,7 @@ export default function OrdersPage() {
                         <Badge className={`text-xs ${ORDER_STATUS_COLORS[order.status]}`}>
                           {ORDER_STATUS_LABELS[order.status]}
                         </Badge>
-                        {order.shipping.trackingNumber && (
+                        {order.shipping?.trackingNumber && (
                           <div className="text-xs text-muted-foreground mt-1">{order.shipping.trackingNumber}</div>
                         )}
                       </TableCell>

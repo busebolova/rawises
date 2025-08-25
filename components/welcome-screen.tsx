@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react"
 import { Sparkles, Heart, Star } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import Image from "next/image"
 
 interface WelcomeScreenProps {
   onComplete: () => void
@@ -63,13 +62,9 @@ export function WelcomeScreen({ onComplete }: WelcomeScreenProps) {
         >
           <div className="flex justify-center mb-4">
             <div className="relative animate-bounce">
-              <Image
-                src="/rawises-logo.png"
-                alt="Rawises"
-                width={200}
-                height={60}
-                className="h-12 sm:h-16 w-auto drop-shadow-lg"
-              />
+              <div className="h-12 sm:h-16 w-auto drop-shadow-lg bg-gradient-to-r from-pink-500 to-purple-500 rounded-lg text-white font-bold text-2xl flex items-center justify-center px-6">
+                RAWISES
+              </div>
               <div className="absolute -top-2 -right-2 w-4 h-4 bg-purple-400 rounded-full animate-ping"></div>
             </div>
           </div>

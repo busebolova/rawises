@@ -16,7 +16,6 @@ import {
 import { CartSidebar } from "@/components/cart-sidebar"
 import { useCartStore } from "@/lib/cart-store"
 import { useAuth } from "@/contexts/auth-context"
-import Image from "next/image"
 import Link from "next/link"
 
 export function Header() {
@@ -49,7 +48,7 @@ export function Header() {
     window.dispatchEvent(new CustomEvent("clearSearch"))
   }
 
-  const handleSignOut = async () => {
+  const handleLogout = async () => {
     try {
       await signOut()
       setIsMobileMenuOpen(false)
@@ -103,14 +102,22 @@ export function Header() {
           <div className="flex items-center justify-between gap-4">
             {/* Logo */}
             <Link href="/" className="flex-shrink-0">
-              <Image
+              <img
                 src="/rawises-logo.png"
                 alt="Rawises"
-                width={120}
-                height={40}
-                className="h-8 lg:h-10 w-auto"
-                priority
+                className="h-8 lg:h-10 w-auto object-contain"
+                onError={(e) => {
+                  // Fallback to text logo if image fails to load
+                  e.currentTarget.style.display = "none"
+                  e.currentTarget.nextElementSibling.style.display = "flex"
+                }}
               />
+              <div
+                className="h-8 lg:h-10 w-auto bg-gradient-to-r from-pink-600 to-purple-500 rounded text-white font-bold text-lg lg:text-xl items-center justify-center px-4 hidden"
+                style={{ display: "none" }}
+              >
+                RAWISES
+              </div>
             </Link>
 
             {/* Desktop Search */}
@@ -211,7 +218,7 @@ export function Header() {
                                 </Link>
                                 <div className="border-t border-pink-100 my-2"></div>
                                 <button
-                                  onClick={handleSignOut}
+                                  onClick={handleLogout}
                                   className="flex items-center w-full px-3 py-2 text-sm hover:bg-pink-50 rounded-md transition-colors text-red-600"
                                 >
                                   <LogOut className="w-4 h-4 mr-2" />
@@ -225,7 +232,11 @@ export function Header() {
                     ) : (
                       <div className="flex items-center gap-2">
                         <Link href="/auth/login">
-                          <Button variant="ghost" size="sm" className="text-pink-700 hover:bg-pink-50">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-pink-600 hover:text-pink-700 hover:bg-pink-50"
+                          >
                             Giriş Yap
                           </Button>
                         </Link>
@@ -234,7 +245,7 @@ export function Header() {
                             size="sm"
                             className="bg-gradient-to-r from-pink-600 to-purple-500 hover:from-pink-700 hover:to-purple-600"
                           >
-                            Kayıt Ol
+                            Üye Ol
                           </Button>
                         </Link>
                       </div>
@@ -252,7 +263,7 @@ export function Header() {
               <Button variant="ghost" size="sm" onClick={() => setIsCartOpen(true)} className="relative p-2">
                 <ShoppingCart className="w-5 h-5" />
                 {totalItems > 0 && (
-                  <Badge className="absolute -top-1 -right-1 bg-accent-500 hover:bg-accent-600 text-white text-xs min-w-[18px] h-[18px] flex items-center justify-center p-0">
+                  <Badge className="absolute -top-1 -right-1 bg-blue-500 hover:bg-blue-600 text-white text-xs min-w-[18px] h-[18px] flex items-center justify-center p-0">
                     {totalItems}
                   </Badge>
                 )}
@@ -459,18 +470,6 @@ export function Header() {
                         >
                           Saç Fırçaları
                         </button>
-                        <button
-                          onClick={() => handleCategoryClick("Saç", "Krem")}
-                          className="block w-full text-left px-3 py-2 text-sm hover:bg-pink-50 rounded-md transition-colors"
-                        >
-                          Saç Kremi
-                        </button>
-                        <button
-                          onClick={() => handleCategoryClick("Saç")}
-                          className="block w-full text-left px-3 py-2 text-sm hover:bg-pink-50 rounded-md transition-colors font-medium border-t border-pink-100 mt-2 pt-2"
-                        >
-                          Tüm Saç Bakımı
-                        </button>
                       </div>
                     </NavigationMenuContent>
                   </NavigationMenuItem>
@@ -587,11 +586,7 @@ export function Header() {
                             >
                               Admin Panel
                             </Link>
-                            <button
-                              onClick={handleSignOut}
-                              className="flex items-center text-sm text-red-600 hover:text-red-800"
-                            >
-                              <LogOut className="w-4 h-4 mr-2" />
+                            <button onClick={handleLogout} className="block text-sm text-red-600 hover:text-red-800">
                               Çıkış Yap
                             </button>
                           </div>
@@ -600,29 +595,22 @@ export function Header() {
                         <>
                           <div className="flex items-center gap-2 mb-3">
                             <User className="w-5 h-5 text-pink-600" />
-                            <span className="font-medium text-pink-800">Giriş / Kayıt</span>
+                            <span className="font-medium text-pink-800">Giriş & Üyelik</span>
                           </div>
                           <div className="space-y-2 ml-7">
                             <Link
                               href="/auth/login"
-                              className="block text-sm text-pink-600 hover:text-pink-800 font-medium"
+                              className="block text-sm text-pink-600 hover:text-pink-800"
                               onClick={() => setIsMobileMenuOpen(false)}
                             >
                               Giriş Yap
                             </Link>
                             <Link
                               href="/auth/register"
-                              className="block text-sm text-pink-600 hover:text-pink-800 font-medium"
-                              onClick={() => setIsMobileMenuOpen(false)}
-                            >
-                              Kayıt Ol
-                            </Link>
-                            <Link
-                              href="/admin"
                               className="block text-sm text-pink-600 hover:text-pink-800"
                               onClick={() => setIsMobileMenuOpen(false)}
                             >
-                              Admin Panel
+                              Üye Ol
                             </Link>
                           </div>
                         </>

@@ -1,5 +1,8 @@
+"use client"
+
 import { createClient } from "./supabase/client"
 import { create } from "zustand"
+import { useState, useEffect } from "react"
 
 interface RealtimeState {
   products: any[]
@@ -127,4 +130,82 @@ export function useRealtimeSubscriptions() {
   }
 
   return { initializeSubscriptions }
+}
+
+// Hook that combines store and subscriptions
+export function useRealtimeSupabase() {
+  const store = useRealtimeStore()
+  const { initializeSubscriptions } = useRealtimeSubscriptions()
+  const supabase = createClient()
+
+  const [lastUpdate, setLastUpdate] = useState<Date | null>(null)
+  const [notifications, setNotifications] = useState<any[]>([])
+
+  useEffect(() => {
+    let cleanup: (() => void) | undefined
+
+    const initializeData = async () => {
+      try {
+        console.log("[v0] Initializing Supabase data...")
+
+        // Fetch initial data
+        const [productsResult, ordersResult, stockResult, discountResult] = await Promise.all([
+          supabase.from("products").select("*"),
+          supabase.from("orders").select("*"),
+          supabase.from("stock_movements").select("*"),
+          supabase.from("discount_settings").select("*"),
+        ])
+
+        if (productsResult.data) store.setProducts(productsResult.data)
+        if (ordersResult.data) store.setOrders(ordersResult.data)
+        if (stockResult.data) store.setStockMovements(stockResult.data)
+        if (discountResult.data) store.setDiscountSettings(discountResult.data)
+
+        setLastUpdate(new Date())
+        console.log("[v0] Initial data loaded successfully")
+
+        // Initialize real-time subscriptions
+        cleanup = initializeSubscriptions()
+      } catch (error) {
+        console.error("[v0] Error initializing Supabase data:", error)
+        store.setConnected(false)
+      }
+    }
+
+    initializeData()
+
+    return () => {
+      if (cleanup) cleanup()
+    }
+  }, [])
+
+  const clearNotifications = () => {
+    setNotifications([])
+  }
+
+  return {
+    products: store.products,
+    orders: store.orders,
+    inventory: store.products.reduce(
+      (acc, product) => {
+        acc[product.id] = product.stock_quantity || 0
+        return acc
+      },
+      {} as Record<string, number>,
+    ),
+    stockMovements: store.stockMovements,
+    discountSettings: store.discountSettings,
+    isConnected: store.isConnected,
+    lastUpdate,
+    notifications,
+    clearNotifications,
+    // Store actions
+    addProduct: store.addProduct,
+    updateProduct: store.updateProduct,
+    deleteProduct: store.deleteProduct,
+    addOrder: store.addOrder,
+    updateOrder: store.updateOrder,
+    addStockMovement: store.addStockMovement,
+    updateDiscountSetting: store.updateDiscountSetting,
+  }
 }

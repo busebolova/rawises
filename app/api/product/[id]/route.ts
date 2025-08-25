@@ -1,7 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { parseCSV } from "@/lib/csv-parser"
-import fs from "fs"
-import path from "path"
+import { createClient } from "@/lib/supabase/server"
 
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
@@ -11,29 +9,26 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       return NextResponse.json({ error: "Product ID is required" }, { status: 400 })
     }
 
-    // Read CSV file
-    const csvPath = path.join(process.cwd(), "data", "products.csv")
-    const csvContent = fs.readFileSync(csvPath, "utf-8")
-    const products = parseCSV(csvContent)
+    const supabase = await createClient()
 
-    // Find the product by ID
-    const product = products.find((p) => p.id === id)
+    // Get the specific product
+    const { data: product, error: productError } = await supabase.from("products").select("*").eq("id", id).single()
 
-    if (!product) {
+    if (productError || !product) {
       return NextResponse.json({ error: "Product not found" }, { status: 404 })
     }
 
     // Get related products (same category, different product)
-    const relatedProducts = products
-      .filter(
-        (p) =>
-          p.id !== product.id && p.categories.toLowerCase().includes(product.categories.toLowerCase().split(",")[0]),
-      )
-      .slice(0, 4)
+    const { data: relatedProducts } = await supabase
+      .from("products")
+      .select("*")
+      .neq("id", product.id)
+      .eq("category", product.category)
+      .limit(4)
 
     return NextResponse.json({
       product,
-      relatedProducts,
+      relatedProducts: relatedProducts || [],
     })
   } catch (error) {
     console.error("Error fetching product:", error)

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { createClient } from "@/lib/supabase/server"
 
 interface Product {
   id: string
@@ -21,28 +22,6 @@ interface Product {
   stockMainWarehouse: number
   isActive: boolean
   createdDate: string
-}
-
-function parseCSVLine(line: string): string[] {
-  const result: string[] = []
-  let current = ""
-  let inQuotes = false
-
-  for (let i = 0; i < line.length; i++) {
-    const char = line[i]
-
-    if (char === '"') {
-      inQuotes = !inQuotes
-    } else if (char === "," && !inQuotes) {
-      result.push(current.trim())
-      current = ""
-    } else {
-      current += char
-    }
-  }
-
-  result.push(current.trim())
-  return result
 }
 
 const fallbackProducts: Product[] = [
@@ -94,92 +73,126 @@ const fallbackProducts: Product[] = [
 
 export async function GET() {
   try {
-    console.log("[v0] Starting products API request")
+    console.log("[v0] Starting products API request from Supabase")
 
-    const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 15000) // 15 second timeout
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error("API timeout")), 3000) // 3 second timeout
+    })
 
-    let response
-    try {
-      response = await fetch(
-        "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/ikas-urunler-zmnfhV8bFHFTmr603W1kIsWmJk4QiD.csv",
-        { signal: controller.signal },
+    const apiPromise = async () => {
+      let supabase
+      try {
+        supabase = await createClient()
+      } catch (clientError) {
+        console.error("[v0] Failed to create Supabase client:", clientError)
+        console.log("[v0] Using fallback products due to client creation failure")
+        return { products: fallbackProducts, total: fallbackProducts.length }
+      }
+
+      let supabaseResponse
+      try {
+        supabaseResponse = await supabase
+          .from("products")
+          .select("id, name, description, price, category, image_url, sku, stock_quantity, is_active, created_at")
+          .eq("is_active", true)
+          .gt("stock_quantity", 0)
+          .order("created_at", { ascending: false })
+          .limit(50) // Reduced limit for faster response
+      } catch (queryError) {
+        console.error("[v0] Supabase query failed:", queryError)
+        console.log("[v0] Using fallback products due to query failure")
+        return { products: fallbackProducts, total: fallbackProducts.length }
+      }
+
+      if (!supabaseResponse) {
+        console.log("[v0] No response from Supabase, using fallback products")
+        return { products: fallbackProducts, total: fallbackProducts.length }
+      }
+
+      const { data: products, error } = supabaseResponse
+
+      if (error) {
+        console.error("[v0] Supabase query error:", error.message || error)
+        console.log("[v0] Using fallback products due to Supabase error")
+        return { products: fallbackProducts, total: fallbackProducts.length }
+      }
+
+      if (!products || products.length === 0) {
+        console.log("[v0] No products found in Supabase, using fallback data")
+        return { products: fallbackProducts, total: fallbackProducts.length }
+      }
+
+      const validRawProducts = products.filter(
+        (product) =>
+          product &&
+          typeof product === "object" &&
+          product.name &&
+          typeof product.name === "string" &&
+          product.price !== null &&
+          product.price !== undefined &&
+          !isNaN(Number(product.price)) &&
+          product.stock_quantity > 0,
       )
-      clearTimeout(timeoutId)
-    } catch (fetchError) {
-      clearTimeout(timeoutId)
-      console.error("[v0] CSV fetch failed, using fallback data:", fetchError)
-      return NextResponse.json({ products: fallbackProducts, total: fallbackProducts.length })
-    }
 
-    if (!response.ok) {
-      console.error("[v0] CSV response not ok:", response.status)
-      return NextResponse.json({ products: fallbackProducts, total: fallbackProducts.length })
-    }
+      console.log("[v0] Found", validRawProducts.length, "valid products with stock in Supabase")
 
-    const csvText = await response.text()
-    console.log("[v0] CSV fetched successfully, parsing...")
+      const transformedProducts: Product[] = validRawProducts.map((product) => {
+        const categoryParts = (product.category || "").split(">").map((part) => part.trim())
+        const mainCategory = categoryParts[0] || "Genel"
+        const subCategory = categoryParts.slice(1).join(" > ")
 
-    // CSV'yi parse et
-    const lines = csvText.split("\n")
-    const headers = lines[0].split(",").map((h) => h.replace(/"/g, "").trim())
+        const currentPrice = Number(product.price) || 0
+        const originalPrice = currentPrice * 1.25 // Assume 25% markup for original price
+        const discountPrice = currentPrice // Current price is the discounted price
 
-    const products: Product[] = []
+        return {
+          id: product.id?.toString() || Math.random().toString(),
+          variantId: product.id?.toString() || Math.random().toString(),
+          name: product.name || "",
+          description: product.description || "",
+          salePrice: originalPrice,
+          discountPrice: discountPrice,
+          purchasePrice: discountPrice * 0.6 || 0,
+          barcode: product.sku || "",
+          sku: product.sku || "",
+          brand: "Rawises",
+          categories: product.category || mainCategory,
+          tags: `${mainCategory}, ${subCategory}, ${product.name}`.toLowerCase(),
+          imageUrl: product.image_url || "/placeholder.svg?height=300&width=300",
+          metaTitle: product.name || "",
+          metaDescription: product.description || "",
+          slug: product.name?.toLowerCase().replace(/\s+/g, "-") || "",
+          stockAdana: Math.floor(Number(product.stock_quantity) * 0.3) || 0,
+          stockMainWarehouse: Math.ceil(Number(product.stock_quantity) * 0.7) || 0,
+          isActive: product.is_active !== false,
+          createdDate: product.created_at || new Date().toISOString(),
+        }
+      })
 
-    for (let i = 1; i < lines.length; i++) {
-      const line = lines[i]
-      if (!line.trim()) continue
+      const validProducts = transformedProducts.filter(
+        (product) =>
+          product.isActive &&
+          product.name &&
+          product.salePrice > 0 &&
+          product.stockAdana + product.stockMainWarehouse > 0,
+      )
 
-      const values = parseCSVLine(line)
+      console.log("[v0] Successfully loaded", validProducts.length, "in-stock products from Supabase")
 
-      if (values.length < headers.length) continue
-
-      const product: Product = {
-        id: values[headers.indexOf("Ürün Grup ID")] || "",
-        variantId: values[headers.indexOf("Varyant ID")] || "",
-        name: values[headers.indexOf("İsim")] || "",
-        description: values[headers.indexOf("Açıklama")] || "",
-        salePrice: Number.parseFloat(values[headers.indexOf("Satış Fiyatı")] || "0"),
-        discountPrice: Number.parseFloat(values[headers.indexOf("İndirimli Fiyatı")] || "0"),
-        purchasePrice: Number.parseFloat(values[headers.indexOf("Alış Fiyatı")] || "0"),
-        barcode: values[headers.indexOf("Barkod Listesi")] || "",
-        sku: values[headers.indexOf("SKU")] || "",
-        brand: values[headers.indexOf("Marka")] || "",
-        categories: values[headers.indexOf("Kategoriler")] || "",
-        tags: values[headers.indexOf("Etiketler")] || "",
-        imageUrl: values[headers.indexOf("Resim URL")] || "",
-        metaTitle: values[headers.indexOf("Metadata Başlık")] || "",
-        metaDescription: values[headers.indexOf("Metadata Açıklama")] || "",
-        slug: values[headers.indexOf("Slug")] || "",
-        stockAdana: Number.parseInt(values[headers.indexOf("Stok:Adana Selahattin Eyyübi")] || "0"),
-        stockMainWarehouse: Number.parseInt(values[headers.indexOf("Stok:Ana Depo")] || "0"),
-        isActive: values[headers.indexOf("Varyant Aktiflik")] === "true",
-        createdDate: values[headers.indexOf("Oluşturulma Tarihi")] || "",
+      if (validProducts.length > 0) {
+        console.log("[v0] First product sample:", JSON.stringify(validProducts[0]).substring(0, 200) + "...")
       }
 
-      // Sadece aktif, geçerli fiyatlı ve resimli ürünleri ekle, saç açma tarama fırçası ürünlerini hariç tut
-      if (
-        product.isActive &&
-        product.name &&
-        product.imageUrl &&
-        product.discountPrice > 0 &&
-        product.salePrice > 0 &&
-        !product.name.toLowerCase().includes("saç açma tarama fırçası")
-      ) {
-        products.push(product)
-      }
+      return { products: validProducts, total: validProducts.length }
     }
 
-    console.log("[v0] Successfully parsed", products.length, "products")
+    const result = await Promise.race([apiPromise(), timeoutPromise])
 
-    if (products.length === 0) {
-      console.log("[v0] No products parsed, using fallback data")
-      return NextResponse.json({ products: fallbackProducts, total: fallbackProducts.length })
-    }
-
-    return NextResponse.json({ products, total: products.length })
+    console.log("[v0] API completed successfully")
+    return NextResponse.json(result)
   } catch (error) {
-    console.error("[v0] CSV parse error:", error)
+    console.error("[v0] Supabase products API error:", error)
+    console.log("[v0] Using fallback products due to timeout or unexpected error")
     return NextResponse.json({ products: fallbackProducts, total: fallbackProducts.length })
   }
 }

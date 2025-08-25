@@ -7,7 +7,6 @@ import { Mail, ArrowLeft, Check } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import Image from "next/image"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 
@@ -93,7 +92,9 @@ export default function ForgotPasswordPage() {
         <Card className="shadow-xl border-0">
           <CardHeader className="text-center pb-6">
             <div className="flex justify-center mb-4">
-              <Image src="/rawises-logo.png" alt="Rawises" width={120} height={40} className="h-10 w-auto" />
+              <div className="h-10 w-auto bg-gradient-to-r from-rawises-600 to-brand-500 rounded text-white font-bold text-lg flex items-center justify-center px-4">
+                RAWISES
+              </div>
             </div>
             <CardTitle className="text-2xl font-bold text-rawises-800">Şifremi Unuttum</CardTitle>
             <p className="text-rawises-600 mt-2">E-posta adresinizi girin, şifre sıfırlama bağlantısı gönderelim</p>

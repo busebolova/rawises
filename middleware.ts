@@ -1,39 +1,20 @@
-import { NextResponse } from "next/server"
+import { updateSession } from "@/lib/supabase/middleware"
 import type { NextRequest } from "next/server"
 
-export function middleware(request: NextRequest) {
-  if (request.nextUrl.pathname.startsWith("/admin")) {
-    // Skip login page
-    if (request.nextUrl.pathname === "/admin/login") {
-      return NextResponse.next()
-    }
-
-    // Check for admin authentication
-    const adminAuth = request.cookies.get("adminAuth")?.value
-    const adminAuthTime = request.cookies.get("adminAuthTime")?.value
-
-    if (!adminAuth || adminAuth !== "true") {
-      return NextResponse.redirect(new URL("/admin/login", request.url))
-    }
-
-    // Check if auth is expired (24 hours)
-    if (adminAuthTime) {
-      const authTime = Number.parseInt(adminAuthTime)
-      const now = Date.now()
-      const twentyFourHours = 24 * 60 * 60 * 1000
-
-      if (now - authTime > twentyFourHours) {
-        const response = NextResponse.redirect(new URL("/admin/login", request.url))
-        response.cookies.delete("adminAuth")
-        response.cookies.delete("adminAuthTime")
-        return response
-      }
-    }
-  }
-
-  return NextResponse.next()
+export async function middleware(request: NextRequest) {
+  return await updateSession(request)
 }
 
 export const config = {
-  matcher: ["/admin/:path*"],
+  matcher: [
+    /*
+     * Match all request paths except:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * - images - .svg, .png, .jpg, .jpeg, .gif, .webp
+     * Feel free to modify this pattern to include more paths.
+     */
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+  ],
 }

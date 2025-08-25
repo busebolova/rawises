@@ -58,7 +58,7 @@ export default function AdminLayout({
             const now = Date.now()
             const twentyFourHours = 24 * 60 * 60 * 1000
 
-            if (now - authTime <= twentyFourHours) {
+            if (now - authTime <= twentyFourHours && authTime <= now) {
               document.cookie = `adminAuth=true; path=/; max-age=${60 * 60 * 24}`
               document.cookie = `adminAuthTime=${authTime}; path=/; max-age=${60 * 60 * 24}`
 
@@ -67,7 +67,9 @@ export default function AdminLayout({
               setIsLoading(false)
               return
             } else {
-              console.log("[v0] Auth expired")
+              console.log("[v0] Auth expired or invalid timestamp")
+              localStorage.removeItem("adminAuth")
+              localStorage.removeItem("adminAuthTime")
             }
           } else {
             console.log("[v0] No valid auth found")

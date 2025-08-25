@@ -19,56 +19,52 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
-  const supabase = createClient()
 
   useEffect(() => {
-    const getSession = async () => {
+    const initializeAuth = () => {
       try {
-        console.log("[v0] Initializing Supabase auth...")
+        console.log("[v0] Initializing auth context...")
 
-        // Add timeout to prevent hanging
-        const sessionPromise = supabase.auth.getSession()
-        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Auth timeout")), 5000))
+        const supabase = createClient()
+
+        supabase.auth
+          .getSession()
+          .then(({ data: { session }, error }) => {
+            if (error) {
+              console.log("[v0] Session error:", error)
+            }
+            setUser(session?.user ?? null)
+            console.log("[v0] Auth initialized successfully")
+          })
+          .catch((error) => {
+            console.log("[v0] Auth client error:", error)
+            setUser(null)
+          })
+          .finally(() => {
+            setLoading(false)
+          })
 
         const {
-          data: { session },
-        } = (await Promise.race([sessionPromise, timeoutPromise])) as any
-        setUser(session?.user ?? null)
-        console.log("[v0] Auth initialized successfully")
+          data: { subscription },
+        } = supabase.auth.onAuthStateChange((event, session) => {
+          console.log("[v0] Auth state changed:", event)
+          setUser(session?.user ?? null)
+        })
+
+        return () => subscription?.unsubscribe()
       } catch (error) {
-        console.log("[v0] Auth initialization failed:", error)
-        setUser(null) // Fallback to no user
-      } finally {
+        console.log("[v0] Auth initialization error:", error)
+        setUser(null)
         setLoading(false)
       }
     }
 
-    getSession()
-
-    let subscription: any
-    try {
-      const {
-        data: { subscription: authSubscription },
-      } = supabase.auth.onAuthStateChange(async (event, session) => {
-        console.log("[v0] Auth state changed:", event)
-        setUser(session?.user ?? null)
-        setLoading(false)
-      })
-      subscription = authSubscription
-    } catch (error) {
-      console.log("[v0] Failed to set up auth listener:", error)
-      setLoading(false)
-    }
-
-    return () => {
-      if (subscription) {
-        subscription.unsubscribe()
-      }
-    }
-  }, [supabase.auth])
+    initializeAuth()
+  }, [])
 
   const signIn = async (email: string, password: string) => {
     try {
+      const supabase = createClient()
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -82,6 +78,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signUp = async (email: string, password: string, metadata?: any) => {
     try {
+      const supabase = createClient()
       const { error } = await supabase.auth.signUp({
         email,
         password,
@@ -100,6 +97,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     try {
+      const supabase = createClient()
       await supabase.auth.signOut()
     } catch (error) {
       console.log("[v0] Sign out error:", error)

@@ -9,7 +9,6 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { Checkbox } from "@/components/ui/checkbox"
-import Image from "next/image"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/contexts/auth-context"
@@ -100,7 +99,9 @@ export default function LoginPage() {
         <Card className="shadow-xl border-0">
           <CardHeader className="text-center pb-6">
             <div className="flex justify-center mb-4">
-              <Image src="/rawises-logo.png" alt="Rawises" width={120} height={40} className="h-10 w-auto" />
+              <div className="h-10 w-auto bg-gradient-to-r from-pink-600 to-purple-500 rounded text-white font-bold text-lg flex items-center justify-center px-4">
+                RAWISES
+              </div>
             </div>
             <CardTitle className="text-2xl font-bold text-pink-800">Hoş Geldiniz</CardTitle>
             <p className="text-pink-600 mt-2">Hesabınıza giriş yapın</p>

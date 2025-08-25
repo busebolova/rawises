@@ -1,5 +1,7 @@
 "use client"
 
+import type React from "react"
+
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -8,22 +10,9 @@ import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Plus, Search, Filter, MoreHorizontal, Edit, Trash2, Eye, Upload, Download, Package } from "lucide-react"
+import type { Product } from "@/lib/csv-parser"
 import Image from "next/image"
 import Link from "next/link"
-
-interface Product {
-  id: string
-  name: string
-  description: string
-  price: number
-  category: string
-  sku: string
-  stock_quantity: number
-  image_url: string
-  is_active: boolean
-  created_at: string
-  updated_at: string
-}
 
 export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([])
@@ -33,23 +22,29 @@ export default function ProductsPage() {
   const [selectedCategory, setSelectedCategory] = useState<string>("all")
   const [currentPage, setCurrentPage] = useState(1)
   const [productsPerPage] = useState(10)
+  const [uploading, setUploading] = useState(false)
 
   // Load products
   useEffect(() => {
     const loadProducts = async () => {
       try {
-        console.log("[v0] Loading products from database...")
+        console.log("[v0] Admin products page: Starting to load products...")
         const response = await fetch("/api/admin/products")
+        console.log("[v0] Admin products API response status:", response.status)
+
         const data = await response.json()
+        console.log("[v0] Admin products API response data:", data)
 
         if (data.products) {
+          console.log("[v0] Admin products loaded successfully:", data.products.length)
           setProducts(data.products)
           setFilteredProducts(data.products)
-          console.log(`[v0] Loaded ${data.products.length} products`)
+        } else {
+          console.log("[v0] Admin products API returned no products array")
         }
         setLoading(false)
       } catch (error) {
-        console.error("[v0] Error loading products:", error)
+        console.error("[v0] Error loading admin products:", error)
         setLoading(false)
       }
     }
@@ -66,21 +61,24 @@ export default function ProductsPage() {
       filtered = filtered.filter(
         (product) =>
           product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          product.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          product.brand.toLowerCase().includes(searchQuery.toLowerCase()) ||
           product.sku.toLowerCase().includes(searchQuery.toLowerCase()),
       )
     }
 
     // Category filter
     if (selectedCategory !== "all") {
-      filtered = filtered.filter((product) => product.category.toLowerCase().includes(selectedCategory.toLowerCase()))
+      filtered = filtered.filter((product) => product.categories.toLowerCase().includes(selectedCategory.toLowerCase()))
     }
 
     setFilteredProducts(filtered)
     setCurrentPage(1)
   }, [searchQuery, selectedCategory, products])
 
-  const categories = Array.from(new Set(products.map((product) => product.category).filter(Boolean)))
+  // Get unique categories
+  const categories = Array.from(
+    new Set(products.flatMap((product) => product.categories.split(">").map((cat) => cat.trim()))),
+  ).filter(Boolean)
 
   // Pagination
   const totalPages = Math.ceil(filteredProducts.length / productsPerPage)
@@ -90,30 +88,71 @@ export default function ProductsPage() {
   const handleDeleteProduct = async (productId: string) => {
     if (confirm("Bu ürünü silmek istediğinizden emin misiniz?")) {
       try {
-        console.log(`[v0] Deleting product ${productId}...`)
         const response = await fetch(`/api/admin/products/${productId}`, {
           method: "DELETE",
         })
 
         if (response.ok) {
           setProducts((prev) => prev.filter((p) => p.id !== productId))
-          console.log("[v0] Product deleted successfully")
           alert("Ürün başarıyla silindi!")
         } else {
           throw new Error("Failed to delete product")
         }
       } catch (error) {
-        console.error("[v0] Error deleting product:", error)
+        console.error("Error deleting product:", error)
         alert("Ürün silinirken hata oluştu")
       }
     }
   }
 
   const getStockStatus = (product: Product) => {
-    const totalStock = product.stock_quantity
+    const totalStock = product.stockMainWarehouse + product.stockAdana
     if (totalStock === 0) return { label: "Stokta Yok", variant: "destructive" as const }
     if (totalStock < 10) return { label: "Düşük Stok", variant: "secondary" as const }
     return { label: "Stokta", variant: "default" as const }
+  }
+
+  const handleCSVUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    if (!file.name.endsWith(".csv")) {
+      alert("Lütfen CSV dosyası seçin")
+      return
+    }
+
+    setUploading(true)
+    const formData = new FormData()
+    formData.append("file", file)
+
+    try {
+      const response = await fetch("/api/admin/products/upload", {
+        method: "POST",
+        body: formData,
+      })
+
+      const result = await response.json()
+
+      if (response.ok) {
+        alert(`${result.imported} ürün başarıyla içe aktarıldı!`)
+        // Reload products
+        const productsResponse = await fetch("/api/admin/products")
+        const productsData = await productsResponse.json()
+        if (productsData.products) {
+          setProducts(productsData.products)
+          setFilteredProducts(productsData.products)
+        }
+      } else {
+        throw new Error(result.error || "Upload failed")
+      }
+    } catch (error) {
+      console.error("CSV upload error:", error)
+      alert("CSV yükleme sırasında hata oluştu")
+    } finally {
+      setUploading(false)
+      // Reset file input
+      event.target.value = ""
+    }
   }
 
   if (loading) {
@@ -142,23 +181,24 @@ export default function ProductsPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            className="border-green-200 text-green-700 hover:bg-green-50 bg-transparent"
-          >
-            <Upload className="h-4 w-4 mr-2" />
-            Toplu İçe Aktar
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="border-green-200 text-green-700 hover:bg-green-50 bg-transparent"
-          >
+          <div className="relative">
+            <input
+              type="file"
+              accept=".csv"
+              onChange={handleCSVUpload}
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+              disabled={uploading}
+            />
+            <Button variant="outline" size="sm" disabled={uploading}>
+              <Upload className="h-4 w-4 mr-2" />
+              {uploading ? "Yükleniyor..." : "Toplu İçe Aktar"}
+            </Button>
+          </div>
+          <Button variant="outline" size="sm">
             <Download className="h-4 w-4 mr-2" />
             Dışa Aktar
           </Button>
-          <Button asChild className="bg-green-600 hover:bg-green-700 text-white">
+          <Button asChild>
             <Link href="/admin/products/new">
               <Plus className="h-4 w-4 mr-2" />
               Yeni Ürün
@@ -169,70 +209,67 @@ export default function ProductsPage() {
 
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-4">
-        <Card className="border-green-200">
+        <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Toplam Ürün</CardTitle>
-            <Package className="h-4 w-4 text-green-600" />
+            <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-700">{products.length}</div>
+            <div className="text-2xl font-bold">{products.length}</div>
           </CardContent>
         </Card>
-        <Card className="border-green-200">
+        <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Aktif Ürün</CardTitle>
-            <Package className="h-4 w-4 text-green-600" />
+            <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-700">{products.filter((p) => p.is_active).length}</div>
+            <div className="text-2xl font-bold">{products.filter((p) => p.isActive).length}</div>
           </CardContent>
         </Card>
-        <Card className="border-green-200">
+        <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Düşük Stok</CardTitle>
-            <Package className="h-4 w-4 text-green-600" />
+            <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-700">
-              {products.filter((p) => p.stock_quantity < 10 && p.stock_quantity > 0).length}
+            <div className="text-2xl font-bold">
+              {products.filter((p) => p.stockMainWarehouse + p.stockAdana < 10).length}
             </div>
           </CardContent>
         </Card>
-        <Card className="border-green-200">
+        <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Stokta Yok</CardTitle>
-            <Package className="h-4 w-4 text-green-600" />
+            <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-700">
-              {products.filter((p) => p.stock_quantity === 0).length}
+            <div className="text-2xl font-bold">
+              {products.filter((p) => p.stockMainWarehouse + p.stockAdana === 0).length}
             </div>
           </CardContent>
         </Card>
       </div>
 
       {/* Filters */}
-      <Card className="border-green-200">
+      <Card>
         <CardContent className="p-6">
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="flex-1">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-green-400 h-4 w-4" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                 <Input
-                  placeholder="Ürün adı, kategori veya SKU ile ara..."
+                  placeholder="Ürün adı, marka veya SKU ile ara..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 border-green-200 focus:border-green-500 focus:ring-green-500"
+                  className="pl-10"
                 />
               </div>
             </div>
             <div className="flex gap-2">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="border-green-200 text-green-700 hover:bg-green-50 bg-transparent"
-                  >
+                  <Button variant="outline">
                     <Filter className="h-4 w-4 mr-2" />
                     Kategori
                   </Button>
@@ -252,11 +289,11 @@ export default function ProductsPage() {
       </Card>
 
       {/* Products Table */}
-      <Card className="border-green-200">
+      <Card>
         <CardContent className="p-0">
           <Table>
             <TableHeader>
-              <TableRow className="border-green-100">
+              <TableRow>
                 <TableHead className="w-16">Görsel</TableHead>
                 <TableHead>Ürün</TableHead>
                 <TableHead>SKU</TableHead>
@@ -271,11 +308,11 @@ export default function ProductsPage() {
               {currentProducts.map((product) => {
                 const stockStatus = getStockStatus(product)
                 return (
-                  <TableRow key={product.id} className="border-green-50">
+                  <TableRow key={product.id}>
                     <TableCell>
-                      <div className="relative w-12 h-12 rounded-lg overflow-hidden bg-green-50">
+                      <div className="relative w-12 h-12 rounded-lg overflow-hidden bg-gray-100">
                         <Image
-                          src={product.image_url || "/placeholder.svg?height=48&width=48"}
+                          src={product.imageUrl || "/placeholder.svg"}
                           alt={product.name}
                           fill
                           className="object-cover"
@@ -290,13 +327,13 @@ export default function ProductsPage() {
                     <TableCell>
                       <div>
                         <div className="font-medium text-sm line-clamp-1">{product.name}</div>
-                        <div className="text-xs text-muted-foreground">{product.category}</div>
+                        <div className="text-xs text-muted-foreground">{product.brand}</div>
                       </div>
                     </TableCell>
                     <TableCell className="font-mono text-sm">{product.sku}</TableCell>
                     <TableCell>
-                      <Badge variant="outline" className="text-xs border-green-200 text-green-700">
-                        {product.category || "Genel"}
+                      <Badge variant="outline" className="text-xs">
+                        {product.categories.split(">").pop()?.trim() || "Genel"}
                       </Badge>
                     </TableCell>
                     <TableCell>
@@ -304,30 +341,34 @@ export default function ProductsPage() {
                         <Badge variant={stockStatus.variant} className="text-xs w-fit">
                           {stockStatus.label}
                         </Badge>
-                        <span className="text-xs text-muted-foreground">{product.stock_quantity} adet</span>
+                        <span className="text-xs text-muted-foreground">
+                          {product.stockMainWarehouse + product.stockAdana} adet
+                        </span>
                       </div>
                     </TableCell>
                     <TableCell>
-                      <span className="font-medium text-green-700">{product.price} TL</span>
+                      <div className="flex flex-col">
+                        <span className="font-medium">{product.discountPrice} TL</span>
+                        {product.salePrice > product.discountPrice && (
+                          <span className="text-xs text-muted-foreground line-through">{product.salePrice} TL</span>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell>
-                      <Badge
-                        variant={product.is_active ? "default" : "secondary"}
-                        className={product.is_active ? "bg-green-100 text-green-800 border-green-200" : ""}
-                      >
-                        {product.is_active ? "Aktif" : "Pasif"}
+                      <Badge variant={product.isActive ? "default" : "secondary"}>
+                        {product.isActive ? "Aktif" : "Pasif"}
                       </Badge>
                     </TableCell>
                     <TableCell>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm" className="hover:bg-green-50">
+                          <Button variant="ghost" size="sm">
                             <MoreHorizontal className="h-4 w-4" />
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem asChild>
-                            <Link href={`/product/${product.id}`}>
+                            <Link href={`/product/${product.id}/${product.slug || "product"}`}>
                               <Eye className="h-4 w-4 mr-2" />
                               Görüntüle
                             </Link>
@@ -361,7 +402,6 @@ export default function ProductsPage() {
             size="sm"
             onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
             disabled={currentPage === 1}
-            className="border-green-200 text-green-700 hover:bg-green-50"
           >
             Önceki
           </Button>
@@ -375,11 +415,6 @@ export default function ProductsPage() {
                   variant={currentPage === page ? "default" : "outline"}
                   size="sm"
                   onClick={() => setCurrentPage(page)}
-                  className={
-                    currentPage === page
-                      ? "bg-green-600 hover:bg-green-700 text-white"
-                      : "border-green-200 text-green-700 hover:bg-green-50"
-                  }
                 >
                   {page}
                 </Button>
@@ -399,7 +434,6 @@ export default function ProductsPage() {
             size="sm"
             onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
             disabled={currentPage === totalPages}
-            className="border-green-200 text-green-700 hover:bg-green-50"
           >
             Sonraki
           </Button>

@@ -7,7 +7,6 @@ import { ChevronDown, ChevronUp, Mail, Phone, MapPin, Facebook, Instagram, Twitt
 import { Button } from "@/components/ui/button"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import Link from "next/link"
-import Image from "next/image"
 
 export function Footer() {
   const [isLegalOpen, setIsLegalOpen] = useState(false)
@@ -32,7 +31,9 @@ export function Footer() {
             {/* Company Info */}
             <div className="space-y-6">
               <div>
-                <Image src="/rawises-logo.png" alt="Rawises" width={150} height={50} className="h-12 w-auto mb-4" />
+                <div className="h-12 w-auto mb-4 bg-gradient-to-r from-rawises-600 to-brand-500 rounded-lg text-white font-bold text-xl flex items-center justify-center px-4">
+                  RAWISES
+                </div>
                 <p className="text-rawises-600 text-sm leading-relaxed">
                   Güzellik ve kişisel bakım ürünlerinde güvenilir adresiniz. Kaliteli ürünler, uygun fiyatlar ve hızlı
                   teslimat.
@@ -199,7 +200,9 @@ export function Footer() {
         <div className="lg:hidden space-y-6">
           {/* Logo & Company Info */}
           <div className="text-center space-y-4">
-            <Image src="/rawises-logo.png" alt="Rawises" width={120} height={40} className="h-10 w-auto mx-auto" />
+            <div className="h-10 w-auto mx-auto bg-gradient-to-r from-rawises-600 to-brand-500 rounded text-white font-bold flex items-center justify-center px-4">
+              RAWISES
+            </div>
             <p className="text-rawises-600 text-sm">Güzellik ve kişisel bakım ürünlerinde güvenilir adresiniz.</p>
           </div>
 
