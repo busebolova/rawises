@@ -1,198 +1,149 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 
-interface Product {
-  id: string
-  variantId: string
-  name: string
-  description: string
-  salePrice: number
-  discountPrice: number
-  purchasePrice: number
-  barcode: string
-  sku: string
-  brand: string
-  categories: string
-  tags: string
-  imageUrl: string
-  metaTitle: string
-  metaDescription: string
-  slug: string
-  stockAdana: number
-  stockMainWarehouse: number
-  isActive: boolean
-  createdDate: string
-}
+export async function GET(request: Request) {
+  console.log("[v0] Products API: Route handler called")
+  console.log("[v0] Request URL:", request.url)
+  console.log("[v0] Request method:", request.method)
 
-const fallbackProducts: Product[] = [
-  {
-    id: "1",
-    variantId: "1",
-    name: "Makyaj Fırçası Seti",
-    description: "Profesyonel makyaj fırçası seti",
-    salePrice: 150,
-    discountPrice: 120,
-    purchasePrice: 80,
-    barcode: "123456789",
-    sku: "MF001",
-    brand: "Rawises",
-    categories: "Makyaj, Fırça",
-    tags: "makyaj, fırça, set",
-    imageUrl: "/placeholder.svg?height=300&width=300",
-    metaTitle: "Makyaj Fırçası Seti",
-    metaDescription: "Profesyonel makyaj fırçası seti",
-    slug: "makyaj-fircasi-seti",
-    stockAdana: 10,
-    stockMainWarehouse: 25,
-    isActive: true,
-    createdDate: "2024-01-01",
-  },
-  {
-    id: "2",
-    variantId: "2",
-    name: "Ruj - Kırmızı",
-    description: "Mat finish kırmızı ruj",
-    salePrice: 80,
-    discountPrice: 65,
-    purchasePrice: 40,
-    barcode: "123456790",
-    sku: "RJ001",
-    brand: "Rawises",
-    categories: "Makyaj, Ruj",
-    tags: "ruj, kırmızı, mat",
-    imageUrl: "/placeholder.svg?height=300&width=300",
-    metaTitle: "Kırmızı Ruj",
-    metaDescription: "Mat finish kırmızı ruj",
-    slug: "kirmizi-ruj",
-    stockAdana: 15,
-    stockMainWarehouse: 30,
-    isActive: true,
-    createdDate: "2024-01-01",
-  },
-]
-
-export async function GET() {
   try {
-    console.log("[v0] Starting products API request from Supabase")
+    console.log("[v0] Products API: Creating Supabase client...")
+    const supabase = await createClient()
 
-    const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error("API timeout")), 3000) // 3 second timeout
-    })
+    console.log("[v0] Products API: Fetching products from Supabase...")
+    const { data: products, error } = await supabase
+      .from("products")
+      .select("*")
+      .eq("is_active", true)
+      .order("created_at", { ascending: false })
+      .limit(100)
 
-    const apiPromise = async () => {
-      let supabase
-      try {
-        supabase = await createClient()
-      } catch (clientError) {
-        console.error("[v0] Failed to create Supabase client:", clientError)
-        console.log("[v0] Using fallback products due to client creation failure")
-        return { products: fallbackProducts, total: fallbackProducts.length }
-      }
-
-      let supabaseResponse
-      try {
-        supabaseResponse = await supabase
-          .from("products")
-          .select("id, name, description, price, category, image_url, sku, stock_quantity, is_active, created_at")
-          .eq("is_active", true)
-          .gt("stock_quantity", 0)
-          .order("created_at", { ascending: false })
-          .limit(50) // Reduced limit for faster response
-      } catch (queryError) {
-        console.error("[v0] Supabase query failed:", queryError)
-        console.log("[v0] Using fallback products due to query failure")
-        return { products: fallbackProducts, total: fallbackProducts.length }
-      }
-
-      if (!supabaseResponse) {
-        console.log("[v0] No response from Supabase, using fallback products")
-        return { products: fallbackProducts, total: fallbackProducts.length }
-      }
-
-      const { data: products, error } = supabaseResponse
-
-      if (error) {
-        console.error("[v0] Supabase query error:", error.message || error)
-        console.log("[v0] Using fallback products due to Supabase error")
-        return { products: fallbackProducts, total: fallbackProducts.length }
-      }
-
-      if (!products || products.length === 0) {
-        console.log("[v0] No products found in Supabase, using fallback data")
-        return { products: fallbackProducts, total: fallbackProducts.length }
-      }
-
-      const validRawProducts = products.filter(
-        (product) =>
-          product &&
-          typeof product === "object" &&
-          product.name &&
-          typeof product.name === "string" &&
-          product.price !== null &&
-          product.price !== undefined &&
-          !isNaN(Number(product.price)) &&
-          product.stock_quantity > 0,
-      )
-
-      console.log("[v0] Found", validRawProducts.length, "valid products with stock in Supabase")
-
-      const transformedProducts: Product[] = validRawProducts.map((product) => {
-        const categoryParts = (product.category || "").split(">").map((part) => part.trim())
-        const mainCategory = categoryParts[0] || "Genel"
-        const subCategory = categoryParts.slice(1).join(" > ")
-
-        const currentPrice = Number(product.price) || 0
-        const originalPrice = currentPrice * 1.25 // Assume 25% markup for original price
-        const discountPrice = currentPrice // Current price is the discounted price
-
-        return {
-          id: product.id?.toString() || Math.random().toString(),
-          variantId: product.id?.toString() || Math.random().toString(),
-          name: product.name || "",
-          description: product.description || "",
-          salePrice: originalPrice,
-          discountPrice: discountPrice,
-          purchasePrice: discountPrice * 0.6 || 0,
-          barcode: product.sku || "",
-          sku: product.sku || "",
-          brand: "Rawises",
-          categories: product.category || mainCategory,
-          tags: `${mainCategory}, ${subCategory}, ${product.name}`.toLowerCase(),
-          imageUrl: product.image_url || "/placeholder.svg?height=300&width=300",
-          metaTitle: product.name || "",
-          metaDescription: product.description || "",
-          slug: product.name?.toLowerCase().replace(/\s+/g, "-") || "",
-          stockAdana: Math.floor(Number(product.stock_quantity) * 0.3) || 0,
-          stockMainWarehouse: Math.ceil(Number(product.stock_quantity) * 0.7) || 0,
-          isActive: product.is_active !== false,
-          createdDate: product.created_at || new Date().toISOString(),
-        }
-      })
-
-      const validProducts = transformedProducts.filter(
-        (product) =>
-          product.isActive &&
-          product.name &&
-          product.salePrice > 0 &&
-          product.stockAdana + product.stockMainWarehouse > 0,
-      )
-
-      console.log("[v0] Successfully loaded", validProducts.length, "in-stock products from Supabase")
-
-      if (validProducts.length > 0) {
-        console.log("[v0] First product sample:", JSON.stringify(validProducts[0]).substring(0, 200) + "...")
-      }
-
-      return { products: validProducts, total: validProducts.length }
+    if (error) {
+      console.log("[v0] Products API: Supabase error:", error)
+      throw new Error(`Supabase error: ${error.message}`)
     }
 
-    const result = await Promise.race([apiPromise(), timeoutPromise])
+    console.log(`[v0] Products API: Found ${products?.length || 0} products in Supabase`)
 
-    console.log("[v0] API completed successfully")
-    return NextResponse.json(result)
+    // Supabase'den ürün varsa onları kullan, yoksa fallback'e geç
+    if (products && products.length > 0) {
+      // Supabase ürünlerini frontend'in beklediği formata çevir
+      const formattedProducts = products.map((product) => ({
+        id: product.id,
+        name: product.name,
+        description: product.description || "",
+        price: product.price || 0,
+        discountPrice: 0, // Şimdilik indirim yok
+        salePrice: product.price || 0,
+        category: product.category || "Genel",
+        imageUrl: product.image_url || "",
+        sku: product.sku || "",
+        stockMainWarehouse: Math.floor((product.stock_quantity || 0) * 0.6), // Ana depo %60
+        stockAdana: Math.floor((product.stock_quantity || 0) * 0.4), // Adana %40
+        stock_quantity: product.stock_quantity || 0,
+        is_active: product.is_active || true,
+        created_at: product.created_at || new Date().toISOString(),
+      }))
+
+      console.log("[v0] Products API: Returning", formattedProducts.length, "products from Supabase")
+      console.log("[v0] Products API: Sample product:", formattedProducts[0]?.name)
+
+      const response = NextResponse.json({
+        products: formattedProducts,
+        total: formattedProducts.length,
+        source: "supabase",
+        timestamp: new Date().toISOString(),
+      })
+
+      response.headers.set("Content-Type", "application/json")
+      return response
+    }
+
+    // Supabase'de ürün yoksa fallback products kullan
+    console.log("[v0] Products API: No products in Supabase, using fallback products")
+
+    const fallbackProducts = [
+      {
+        id: "1",
+        name: "Flormar Oje - Kırmızı",
+        description: "Uzun süre kalıcı kırmızı oje",
+        price: 25.9,
+        discountPrice: 0,
+        salePrice: 25.9,
+        category: "Makyaj > Oje",
+        imageUrl:
+          "https://cdn.myikas.com/cdn-cgi/image/width=540,height=540,quality=85/product_images/flormar-oje-kirmizi.jpg",
+        sku: "FL001",
+        stockMainWarehouse: 30,
+        stockAdana: 20,
+        stock_quantity: 50,
+        is_active: true,
+        created_at: "2024-01-01T00:00:00Z",
+      },
+      {
+        id: "2",
+        name: "Gabrini Ruj - Mat Finish",
+        description: "Mat bitişli uzun süre kalıcı ruj",
+        price: 45.9,
+        discountPrice: 0,
+        salePrice: 45.9,
+        category: "Makyaj > Ruj",
+        imageUrl:
+          "https://cdn.myikas.com/cdn-cgi/image/width=540,height=540,quality=85/product_images/gabrini-ruj-mat.jpg",
+        sku: "GB001",
+        stockMainWarehouse: 20,
+        stockAdana: 10,
+        stock_quantity: 30,
+        is_active: true,
+        created_at: "2024-01-01T00:00:00Z",
+      },
+      {
+        id: "3",
+        name: "L'Oreal Paris Maskara",
+        description: "Hacim veren siyah maskara",
+        price: 89.9,
+        discountPrice: 0,
+        salePrice: 89.9,
+        category: "Makyaj > Maskara",
+        imageUrl:
+          "https://cdn.myikas.com/cdn-cgi/image/width=540,height=540,quality=85/product_images/loreal-maskara.jpg",
+        sku: "LO001",
+        stockMainWarehouse: 25,
+        stockAdana: 15,
+        stock_quantity: 40,
+        is_active: true,
+        created_at: "2024-01-01T00:00:00Z",
+      },
+    ]
+
+    console.log("[v0] Products API: Returning", fallbackProducts.length, "fallback products")
+
+    const response = NextResponse.json({
+      products: fallbackProducts,
+      total: fallbackProducts.length,
+      source: "fallback",
+      timestamp: new Date().toISOString(),
+    })
+
+    response.headers.set("Content-Type", "application/json")
+
+    console.log("[v0] Products API: Response created successfully")
+    return response
   } catch (error) {
-    console.error("[v0] Supabase products API error:", error)
-    console.log("[v0] Using fallback products due to timeout or unexpected error")
-    return NextResponse.json({ products: fallbackProducts, total: fallbackProducts.length })
+    console.error("[v0] Products API: Critical error:", error)
+
+    const errorResponse = NextResponse.json(
+      {
+        error: "Internal server error",
+        message: error instanceof Error ? error.message : "Unknown error",
+        products: [],
+        total: 0,
+        source: "error",
+      },
+      { status: 500 },
+    )
+
+    errorResponse.headers.set("Content-Type", "application/json")
+    return errorResponse
   }
 }

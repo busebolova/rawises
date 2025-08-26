@@ -48,23 +48,17 @@ export async function POST() {
 
       if (values.length < headers.length) continue
 
-      // Map CSV data to our database schema
+      const discountPrice = Number.parseFloat(values[headers.indexOf("İndirimli Fiyatı")] || "0")
+      const regularPrice = Number.parseFloat(values[headers.indexOf("Satış Fiyatı")] || "0")
+
       const product = {
         id: randomUUID(), // Generate new UUID for each product
         name: values[headers.indexOf("İsim")] || "",
-        description: values[headers.indexOf("Açıklama")] || "",
-        price: Number.parseFloat(values[headers.indexOf("Satış Fiyatı")] || "0"),
-        discount_price: Number.parseFloat(values[headers.indexOf("İndirimli Fiyatı")] || "0"),
-        purchase_price: Number.parseFloat(values[headers.indexOf("Alış Fiyatı")] || "0"),
+        description: values[headers.indexOf("Açıklama")] || values[headers.indexOf("İsim")] || "",
+        price: discountPrice > 0 ? discountPrice : regularPrice, // Use discount price if available
         sku: values[headers.indexOf("SKU")] || values[headers.indexOf("Barkod Listesi")] || "",
-        barcode: values[headers.indexOf("Barkod Listesi")] || "",
-        brand: values[headers.indexOf("Marka")] || "Rawises",
-        category: values[headers.indexOf("Kategoriler")] || "",
-        tags: values[headers.indexOf("Etiketler")] || "",
+        category: values[headers.indexOf("Kategoriler")] || "Kozmetik",
         image_url: values[headers.indexOf("Resim URL")] || "/placeholder.svg?height=300&width=300",
-        meta_title: values[headers.indexOf("Metadata Başlık")] || "",
-        meta_description: values[headers.indexOf("Metadata Açıklama")] || "",
-        slug: values[headers.indexOf("Slug")] || "",
         stock_quantity: Number.parseInt(
           values[headers.indexOf("Stok:Ana Depo")] || values[headers.indexOf("Stok:Adana Selahattin Eyyübi")] || "0",
         ),
@@ -74,8 +68,8 @@ export async function POST() {
         updated_at: new Date().toISOString(),
       }
 
-      // Only add products with valid names
-      if (product.name && product.name.length > 0) {
+      // Only add products with valid names and positive stock
+      if (product.name && product.name.length > 0 && product.stock_quantity > 0) {
         products.push(product)
       }
     }
@@ -87,15 +81,11 @@ export async function POST() {
     const supabase = await createClient()
 
     console.log("[v0] Clearing existing products...")
-    const { error: deleteError } = await supabase.rpc("truncate_products")
+    const { error: deleteError } = await supabase.from("products").delete().gte("created_at", "1900-01-01")
 
     if (deleteError) {
-      // Fallback to delete if truncate function doesn't exist
-      console.log("[v0] Truncate failed, using delete fallback...")
-      const { error: fallbackError } = await supabase.from("products").delete().gte("created_at", "1900-01-01")
-      if (fallbackError) {
-        console.error("[v0] Error clearing products:", fallbackError)
-      }
+      console.error("[v0] Error clearing products:", deleteError)
+      throw new Error("Failed to clear existing products")
     }
 
     console.log("[v0] Inserting new products...")
@@ -109,9 +99,7 @@ export async function POST() {
         id: product.id,
         name: product.name,
         description: product.description,
-        price: product.discount_price > 0 ? product.discount_price : product.price,
-        discount_price: product.discount_price,
-        purchase_price: product.purchase_price,
+        price: product.price,
         sku: product.sku,
         category: product.category,
         image_url: product.image_url,
@@ -121,14 +109,11 @@ export async function POST() {
         updated_at: product.updated_at,
       }))
 
-      const { error: insertError } = await supabase.from("products").upsert(mappedBatch, {
-        onConflict: "id",
-        ignoreDuplicates: false,
-      })
+      const { error: insertError } = await supabase.from("products").insert(mappedBatch)
 
       if (insertError) {
         console.error("[v0] Error inserting batch:", insertError)
-        // Continue with next batch instead of failing completely
+        throw new Error(`Failed to insert products: ${insertError.message}`)
       } else {
         insertedCount += batch.length
         console.log("[v0] Inserted batch:", insertedCount, "/", products.length)

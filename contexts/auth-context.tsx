@@ -12,6 +12,7 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<{ error: any }>
   signUp: (email: string, password: string, metadata?: any) => Promise<{ error: any }>
   signOut: () => Promise<void>
+  signInWithGoogle: () => Promise<{ error: any }>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -64,22 +65,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signIn = async (email: string, password: string) => {
     try {
+      console.log("[v0] Auth: Attempting sign in for:", email)
       const supabase = createClient()
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       })
+
+      if (error) {
+        console.log("[v0] Auth: Sign in error:", error.message)
+      } else {
+        console.log("[v0] Auth: Sign in successful for user:", data.user?.email)
+      }
+
       return { error }
     } catch (error) {
-      console.log("[v0] Sign in error:", error)
+      console.log("[v0] Auth: Sign in exception:", error)
       return { error }
     }
   }
 
   const signUp = async (email: string, password: string, metadata?: any) => {
     try {
+      console.log("[v0] Auth: Attempting sign up for:", email)
       const supabase = createClient()
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -88,9 +98,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL || `${window.location.origin}/auth/callback`,
         },
       })
+
+      if (error) {
+        console.log("[v0] Auth: Sign up error:", error.message)
+      } else {
+        console.log("[v0] Auth: Sign up successful, confirmation email sent to:", email)
+      }
+
       return { error }
     } catch (error) {
-      console.log("[v0] Sign up error:", error)
+      console.log("[v0] Auth: Sign up exception:", error)
       return { error }
     }
   }
@@ -100,7 +117,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const supabase = createClient()
       await supabase.auth.signOut()
     } catch (error) {
-      console.log("[v0] Sign out error:", error)
+      console.log("[v0] Auth: Sign out error:", error)
+    }
+  }
+
+  const signInWithGoogle = async () => {
+    try {
+      console.log("[v0] Auth: Attempting Google sign in")
+      const supabase = createClient()
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
+      })
+
+      if (error) {
+        console.log("[v0] Auth: Google sign in error:", error.message)
+      }
+
+      return { error }
+    } catch (error) {
+      console.log("[v0] Auth: Google sign in exception:", error)
+      return { error }
     }
   }
 
@@ -110,6 +149,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     signIn,
     signUp,
     signOut,
+    signInWithGoogle,
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

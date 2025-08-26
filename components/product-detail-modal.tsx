@@ -42,6 +42,9 @@ export function ProductDetailModal({ isOpen, product, onClose }: ProductDetailMo
   }
 
   const discountPercentage = calculateDiscountPercentage(product.salePrice, product.discountPrice)
+  const hasDiscount = product.discountPrice && product.discountPrice > 0 && product.discountPrice < product.salePrice
+  const displayPrice = hasDiscount ? product.discountPrice : product.salePrice
+  const originalPrice = hasDiscount ? product.salePrice : null
 
   return (
     <>
@@ -107,11 +110,9 @@ export function ProductDetailModal({ isOpen, product, onClose }: ProductDetailMo
 
                   {/* Price */}
                   <div className="flex items-center gap-4 mb-6">
-                    {product.salePrice > product.discountPrice && (
-                      <span className="text-lg line-through text-gray-400">{product.salePrice} TL</span>
-                    )}
+                    {originalPrice && <span className="text-lg line-through text-gray-400">{originalPrice} TL</span>}
                     <span className="text-3xl font-bold bg-gradient-to-r from-rawises-600 to-brand-500 bg-clip-text text-transparent">
-                      {product.discountPrice} TL
+                      {displayPrice || 0} TL
                     </span>
                   </div>
                 </div>
@@ -175,7 +176,7 @@ export function ProductDetailModal({ isOpen, product, onClose }: ProductDetailMo
                       ) : (
                         <>
                           <ShoppingCart className="w-5 h-5 mr-2" />
-                          Sepete Ekle ({((product.discountPrice || 0) * quantity).toFixed(2)} TL)
+                          Sepete Ekle ({((displayPrice || 0) * quantity).toFixed(2)} TL)
                         </>
                       )}
                     </Button>
@@ -203,7 +204,9 @@ export function ProductDetailModal({ isOpen, product, onClose }: ProductDetailMo
                     </div>
                     <div>
                       <span className="text-gray-600">Kategori:</span>
-                      <span className="ml-2 font-medium">{product.categories.split(">").pop()?.trim() || "Genel"}</span>
+                      <span className="ml-2 font-medium">
+                        {product.categories?.split(">").pop()?.trim() || "Genel"}
+                      </span>
                     </div>
                   </div>
                 </div>

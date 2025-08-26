@@ -120,8 +120,12 @@ export function PromotionalSlider() {
 
               <div className="bg-white rounded-2xl px-6 py-3 inline-block mb-4">
                 <span className="text-2xl font-bold bg-gradient-to-r from-rawises-600 to-purple-600 bg-clip-text text-transparent">
-                  EK İNDİRİM
+                  %15 EK İNDİRİM
                 </span>
+              </div>
+
+              <div className="bg-gradient-to-r from-green-500 to-emerald-600 rounded-xl px-6 py-3 inline-block mb-4 shadow-lg">
+                <span className="text-white font-bold text-xl">İlk Üyelikte %15 İNDİRİM</span>
               </div>
             </div>
 
@@ -129,6 +133,10 @@ export function PromotionalSlider() {
               <p>
                 Bu kampanya yalnızca rawises.com'a üye olan kullanıcılar için geçerlidir. Kampanya, 4-31 Nisan 2025
                 tarihleri arasında geçerlidir.
+              </p>
+              <p className="mt-3 text-green-200 font-semibold bg-green-600/20 rounded-lg px-3 py-2">
+                ✨ İlk kez üye olan müşterilerimize özel %15 ek indirim fırsatı! Kayıt olduktan sonra ilk
+                alışverişinizde otomatik olarak uygulanır.
               </p>
             </div>
           </div>

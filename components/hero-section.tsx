@@ -15,49 +15,156 @@ export function HeroSection() {
 
         if (!response.ok) {
           console.error("[v0] Hero products API response not ok:", response.status)
+          setFallbackHeroProducts()
           return
         }
 
         const data = await response.json()
+        console.log(
+          "[v0] HeroSection: API'den",
+          Array.isArray(data) ? data.length : data.products?.length || 0,
+          "ürün yüklendi",
+        )
 
-        if (data.products && Array.isArray(data.products)) {
-          const validProducts = data.products.filter((product: Product) => {
-            const hasValidPrice =
-              (product.discountPrice && product.discountPrice > 0) ||
-              (product.salePrice && product.salePrice > 0) ||
-              (product.price && product.price > 0)
-            const hasStock = (product.stockMainWarehouse || 0) + (product.stockAdana || 0) > 0
+        const products = Array.isArray(data) ? data : data.products && Array.isArray(data.products) ? data.products : []
 
-            const hasValidImage =
+        if (products.length > 0) {
+          const validProductsForProcessing = products.filter((product: any) => {
+            return (
+              product &&
+              typeof product === "object" &&
+              product.name &&
+              typeof product.name === "string" &&
+              product.name.trim() !== "" &&
               product.imageUrl &&
               typeof product.imageUrl === "string" &&
-              product.imageUrl.trim() !== "" &&
-              product.imageUrl.length > 10 &&
-              (product.imageUrl.startsWith("https://") || product.imageUrl.startsWith("http://")) &&
-              !product.imageUrl.includes("placeholder") &&
-              !product.imageUrl.includes("default") &&
-              (product.imageUrl.includes(".jpg") ||
-                product.imageUrl.includes(".jpeg") ||
-                product.imageUrl.includes(".png") ||
-                product.imageUrl.includes(".webp"))
-
-            console.log(
-              `[v0] Hero product validation - ${product.name}: hasValidPrice=${hasValidPrice}, hasStock=${hasStock}, hasValidImage=${hasValidImage}, imageUrl=${product.imageUrl}`,
+              product.imageUrl.trim() !== ""
             )
-
-            return hasValidPrice && hasStock && hasValidImage
           })
 
+          console.log(
+            `[v0] Processing ${validProductsForProcessing.length} valid products out of ${products.length} total products`,
+          )
+
+          const processedProducts = validProductsForProcessing
+            .map((product: any) => {
+              try {
+                const hasValidPrice =
+                  (product.discountPrice && product.discountPrice > 0) ||
+                  (product.salePrice && product.salePrice > 0) ||
+                  (product.price && product.price > 0)
+                const hasStock = (product.stockMainWarehouse || 0) + (product.stockAdana || 0) > 0
+
+                const hasValidImageUrl =
+                  product.imageUrl &&
+                  typeof product.imageUrl === "string" &&
+                  product.imageUrl.trim() !== "" &&
+                  product.imageUrl.length > 10 &&
+                  (product.imageUrl.startsWith("https://") || product.imageUrl.startsWith("http://"))
+
+                console.log(
+                  `[v0] Hero product validation - ${product.name}: hasValidPrice=${hasValidPrice}, hasStock=${hasStock}, hasValidImage=${hasValidImageUrl}`,
+                )
+
+                return {
+                  ...product,
+                  hasValidPrice,
+                  hasStock,
+                  hasValidImageUrl,
+                  isValid: hasValidPrice && hasStock && hasValidImageUrl,
+                }
+              } catch (error) {
+                console.error("[v0] Error processing hero product:", product?.name || "unknown", error)
+                return null
+              }
+            })
+            .filter((product) => product !== null)
+
+          const sortedProducts = processedProducts.sort((a, b) => {
+            if (a.isValid && !b.isValid) return -1
+            if (!a.isValid && b.isValid) return 1
+
+            if (a.hasStock && !b.hasStock) return -1
+            if (!a.hasStock && b.hasStock) return 1
+
+            return 0
+          })
+
+          const validProducts = sortedProducts.filter((product) => product.isValid)
+
           console.log("[v0] Found valid hero products:", validProducts.length)
-          setHeroProducts(validProducts.slice(0, 4))
+          if (validProducts.length > 0) {
+            setHeroProducts(validProducts.slice(0, 4))
+          } else {
+            setFallbackHeroProducts()
+          }
         } else {
           console.log("[v0] No products found in hero API response")
-          setHeroProducts([])
+          setFallbackHeroProducts()
         }
       } catch (error) {
         console.error("[v0] Error loading hero products:", error)
-        setHeroProducts([])
+        setFallbackHeroProducts()
       }
+    }
+
+    const setFallbackHeroProducts = () => {
+      console.log("[v0] Using fallback hero products...")
+      const fallbackProducts: Product[] = [
+        {
+          id: "hero-1",
+          name: "Maybelline Instant Anti Age Eraser Kapatıcı",
+          price: 89.9,
+          discountPrice: 67.43,
+          salePrice: 67.43,
+          imageUrl: "/maybelline-foundation.png",
+          category: "Makyaj",
+          description: "Yaşlanma karşıtı kapatıcı",
+          stockMainWarehouse: 25,
+          stockAdana: 15,
+          sku: "MAY-001",
+        },
+        {
+          id: "hero-2",
+          name: "L'Oreal Paris Voluminous Maskara",
+          price: 129.9,
+          discountPrice: 97.43,
+          salePrice: 97.43,
+          imageUrl: "/loreal-mascara.png",
+          category: "Makyaj",
+          description: "Hacim veren maskara",
+          stockMainWarehouse: 30,
+          stockAdana: 20,
+          sku: "LOR-001",
+        },
+        {
+          id: "hero-3",
+          name: "MAC Ruby Woo Ruj",
+          price: 199.9,
+          discountPrice: 149.93,
+          salePrice: 149.93,
+          imageUrl: "/mac-ruby-woo-lipstick.png",
+          category: "Makyaj",
+          description: "Klasik kırmızı ruj",
+          stockMainWarehouse: 20,
+          stockAdana: 10,
+          sku: "MAC-001",
+        },
+        {
+          id: "hero-4",
+          name: "Urban Decay Naked Palette",
+          price: 299.9,
+          discountPrice: 224.93,
+          salePrice: 224.93,
+          imageUrl: "/urban-decay-naked-palette.png",
+          category: "Makyaj",
+          description: "Göz farı paleti",
+          stockMainWarehouse: 15,
+          stockAdana: 8,
+          sku: "UD-001",
+        },
+      ]
+      setHeroProducts(fallbackProducts)
     }
 
     loadHeroProducts()
@@ -81,15 +188,15 @@ export function HeroSection() {
             <div className="relative inline-block mb-6 lg:mb-8">
               <div className="bg-white px-6 sm:px-8 lg:px-10 py-4 sm:py-5 lg:py-6 rounded-2xl sm:rounded-3xl shadow-xl transform -rotate-1 sm:-rotate-2 border-2 border-rawises-100">
                 <span className="text-3xl sm:text-4xl lg:text-5xl font-black bg-gradient-to-r from-rawises-700 to-brand-600 bg-clip-text text-transparent">
-                  EK İNDİRİM
+                  %15 EK İNDİRİM
                 </span>
               </div>
             </div>
 
             <div className="bg-white/80 backdrop-blur-sm p-3 sm:p-4 rounded-xl shadow-lg max-w-sm sm:max-w-md mx-auto lg:mx-0">
               <p className="text-xs sm:text-sm text-rawises-800 leading-relaxed">
-                Bu kampanya yalnızca rawises.com'a üye olan kullanıcılar için geçerlidir. Kampanya, 4-31 Nisan 2025
-                tarihleri arasında geçerlidir.
+                İlk üye olan müşterilerimize özel %15 indirim kampanyası! Bu kampanya yalnızca rawises.com'a ilk kez üye
+                olan kullanıcılar için geçerlidir.
               </p>
             </div>
           </div>
@@ -119,10 +226,10 @@ export function HeroSection() {
                           crossOrigin="anonymous"
                           onError={(e) => {
                             console.log(`[v0] Image failed to load for hero product: ${product.name}`)
-                            // Görsel yüklenemezse ürünü DOM'dan kaldır
-                            const productElement = (e.target as HTMLElement).closest("[data-product-id]")
-                            if (productElement) {
-                              productElement.style.display = "none"
+                            if (e && e.target) {
+                              const imgElement = e.target as HTMLImageElement
+                              imgElement.src =
+                                "/placeholder.svg?height=180&width=180&text=" + encodeURIComponent(product.name)
                             }
                           }}
                         />

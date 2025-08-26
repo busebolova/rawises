@@ -3,16 +3,9 @@
 import type React from "react"
 
 import { useState, useEffect } from "react"
-import { Search, ShoppingCart, User, Menu, X, Phone, Mail, LogOut } from "lucide-react"
+import { Search, ShoppingCart, User, Menu, X, Phone, Mail, LogOut, ChevronDown } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import {
-  NavigationMenu,
-  NavigationMenuContent,
-  NavigationMenuItem,
-  NavigationMenuList,
-  NavigationMenuTrigger,
-} from "@/components/ui/navigation-menu"
 import { CartSidebar } from "@/components/cart-sidebar"
 import { useCartStore } from "@/lib/cart-store"
 import { useAuth } from "@/contexts/auth-context"
@@ -22,11 +15,14 @@ export function Header() {
   const [isCartOpen, setIsCartOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const [openDropdown, setOpenDropdown] = useState<string | null>(null)
+  const [userDropdownOpen, setUserDropdownOpen] = useState(false)
   const { totalItems } = useCartStore()
   const { user, signOut, loading } = useAuth()
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
+    console.log("[v0] Header: Search submitted with query:", searchQuery)
     if (searchQuery.trim()) {
       window.dispatchEvent(new CustomEvent("searchProducts", { detail: { query: searchQuery } }))
     } else {
@@ -35,12 +31,14 @@ export function Header() {
   }
 
   const handleCategoryClick = (category: string, subcategory?: string, csvCategory?: string) => {
+    console.log("[v0] Header: Category clicked:", { category, subcategory, csvCategory })
     window.dispatchEvent(
       new CustomEvent("categoryFilter", {
         detail: { category, subcategory, csvCategory: csvCategory || subcategory || category },
       }),
     )
     setIsMobileMenuOpen(false)
+    setOpenDropdown(null)
   }
 
   const clearSearch = () => {
@@ -52,21 +50,70 @@ export function Header() {
     try {
       await signOut()
       setIsMobileMenuOpen(false)
+      setUserDropdownOpen(false)
     } catch (error) {
       console.error("Logout error:", error)
     }
+  }
+
+  const toggleDropdown = (dropdownName: string) => {
+    console.log("[v0] Header: Toggling dropdown:", dropdownName)
+    setOpenDropdown(openDropdown === dropdownName ? null : dropdownName)
   }
 
   useEffect(() => {
     const handleResize = () => {
       if (window.innerWidth >= 1024) {
         setIsMobileMenuOpen(false)
+        setOpenDropdown(null)
+      }
+    }
+
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element
+      if (!target.closest(".dropdown-container")) {
+        setOpenDropdown(null)
+        setUserDropdownOpen(false)
       }
     }
 
     window.addEventListener("resize", handleResize)
-    return () => window.removeEventListener("resize", handleResize)
+    document.addEventListener("click", handleClickOutside)
+    return () => {
+      window.removeEventListener("resize", handleResize)
+      document.removeEventListener("click", handleClickOutside)
+    }
   }, [])
+
+  const DropdownMenu = ({
+    trigger,
+    children,
+    isOpen,
+    onToggle,
+  }: {
+    trigger: React.ReactNode
+    children: React.ReactNode
+    isOpen: boolean
+    onToggle: () => void
+  }) => (
+    <div className="relative dropdown-container">
+      <button
+        onClick={(e) => {
+          e.stopPropagation()
+          onToggle()
+        }}
+        className="flex items-center gap-1 px-3 py-2 text-sm hover:bg-pink-50 rounded-md transition-colors"
+      >
+        {trigger}
+        <ChevronDown className={`w-3 h-3 transition-transform ${isOpen ? "rotate-180" : ""}`} />
+      </button>
+      {isOpen && (
+        <div className="absolute top-full left-0 mt-1 bg-white border border-pink-200 rounded-lg shadow-lg z-50 min-w-48">
+          {children}
+        </div>
+      )}
+    </div>
+  )
 
   return (
     <>
@@ -183,77 +230,6 @@ export function Header() {
 
             {/* Actions */}
             <div className="flex items-center gap-2 lg:gap-4">
-              {/* Desktop User Menu */}
-              <div className="hidden lg:block">
-                {!loading && (
-                  <>
-                    {user ? (
-                      <NavigationMenu>
-                        <NavigationMenuList>
-                          <NavigationMenuItem>
-                            <NavigationMenuTrigger className="bg-transparent hover:bg-pink-50 data-[state=open]:bg-pink-50">
-                              <User className="w-4 h-4 mr-2" />
-                              {user.email?.split("@")[0] || "Hesabım"}
-                            </NavigationMenuTrigger>
-                            <NavigationMenuContent>
-                              <div className="w-48 p-2">
-                                <Link
-                                  href="/hesabim"
-                                  className="block px-3 py-2 text-sm hover:bg-pink-50 rounded-md transition-colors"
-                                >
-                                  Hesabım
-                                </Link>
-                                <Link
-                                  href="/siparislerim"
-                                  className="block px-3 py-2 text-sm hover:bg-pink-50 rounded-md transition-colors"
-                                >
-                                  Siparişlerim
-                                </Link>
-                                <div className="border-t border-pink-100 my-2"></div>
-                                <Link
-                                  href="/admin"
-                                  className="block px-3 py-2 text-sm hover:bg-pink-50 rounded-md transition-colors text-pink-700 font-medium"
-                                >
-                                  Admin Panel
-                                </Link>
-                                <div className="border-t border-pink-100 my-2"></div>
-                                <button
-                                  onClick={handleLogout}
-                                  className="flex items-center w-full px-3 py-2 text-sm hover:bg-pink-50 rounded-md transition-colors text-red-600"
-                                >
-                                  <LogOut className="w-4 h-4 mr-2" />
-                                  Çıkış Yap
-                                </button>
-                              </div>
-                            </NavigationMenuContent>
-                          </NavigationMenuItem>
-                        </NavigationMenuList>
-                      </NavigationMenu>
-                    ) : (
-                      <div className="flex items-center gap-2">
-                        <Link href="/auth/login">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-pink-600 hover:text-pink-700 hover:bg-pink-50"
-                          >
-                            Giriş Yap
-                          </Button>
-                        </Link>
-                        <Link href="/auth/register">
-                          <Button
-                            size="sm"
-                            className="bg-gradient-to-r from-pink-600 to-purple-500 hover:from-pink-700 hover:to-purple-600"
-                          >
-                            Üye Ol
-                          </Button>
-                        </Link>
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-
               {/* Mobile User Button */}
               <Button variant="ghost" size="sm" className="lg:hidden p-2">
                 <User className="w-5 h-5" />
@@ -285,266 +261,341 @@ export function Header() {
         {/* Desktop Navigation */}
         <div className="hidden lg:block border-t border-pink-100">
           <div className="container mx-auto px-4">
-            <div className="relative">
-              <NavigationMenu className="max-w-none">
-                <NavigationMenuList className="flex-nowrap justify-start gap-0 overflow-x-auto">
-                  {/* Anne & Bebek */}
-                  <NavigationMenuItem>
-                    <NavigationMenuTrigger className="bg-transparent hover:bg-pink-50 data-[state=open]:bg-pink-50 whitespace-nowrap text-sm px-3">
-                      Anne & Bebek
-                    </NavigationMenuTrigger>
-                    <NavigationMenuContent>
-                      <div className="w-56 p-3 bg-white">
-                        <button
-                          onClick={() => handleCategoryClick("Anne & Bebek", "Bebek Bakım")}
-                          className="block w-full text-left px-3 py-2.5 text-sm hover:bg-pink-50 rounded-md transition-colors duration-200 focus:bg-pink-100 focus:outline-none"
-                        >
-                          Bebek Bakım
-                        </button>
-                        <button
-                          onClick={() => handleCategoryClick("Anne & Bebek", "Emzik & Biberon")}
-                          className="block w-full text-left px-3 py-2.5 text-sm hover:bg-pink-50 rounded-md transition-colors duration-200 focus:bg-pink-100 focus:outline-none"
-                        >
-                          Emzik & Biberon
-                        </button>
-                        <button
-                          onClick={() => handleCategoryClick("Anne & Bebek")}
-                          className="block w-full text-left px-3 py-2.5 text-sm hover:bg-pink-50 rounded-md transition-colors duration-200 focus:bg-pink-100 focus:outline-none font-medium border-t border-pink-100 mt-2 pt-2"
-                        >
-                          Tüm Anne & Bebek
-                        </button>
-                      </div>
-                    </NavigationMenuContent>
-                  </NavigationMenuItem>
+            <div className="flex items-center gap-1 py-2">
+              {/* Anne & Bebek */}
+              <DropdownMenu
+                trigger="Anne & Bebek"
+                isOpen={openDropdown === "anne-bebek"}
+                onToggle={() => toggleDropdown("anne-bebek")}
+              >
+                <div className="p-2">
+                  <button
+                    onClick={() => handleCategoryClick("Anne & Bebek", "Bebek Bakım")}
+                    className="block w-full text-left px-3 py-2 text-sm hover:bg-pink-50 rounded-md transition-colors"
+                  >
+                    Bebek Bakım
+                  </button>
+                  <button
+                    onClick={() => handleCategoryClick("Anne & Bebek", "Emzik & Biberon")}
+                    className="block w-full text-left px-3 py-2 text-sm hover:bg-pink-50 rounded-md transition-colors"
+                  >
+                    Emzik & Biberon
+                  </button>
+                  <div className="border-t border-pink-100 my-2"></div>
+                  <button
+                    onClick={() => handleCategoryClick("Anne & Bebek")}
+                    className="block w-full text-left px-3 py-2 text-sm hover:bg-pink-50 rounded-md transition-colors font-medium"
+                  >
+                    Tüm Anne & Bebek
+                  </button>
+                </div>
+              </DropdownMenu>
 
-                  {/* Ağız Bakım */}
-                  <NavigationMenuItem>
-                    <NavigationMenuTrigger className="bg-transparent hover:bg-pink-50 data-[state=open]:bg-pink-50 whitespace-nowrap text-sm px-3">
-                      Ağız Bakım
-                    </NavigationMenuTrigger>
-                    <NavigationMenuContent>
-                      <div className="w-56 p-3 bg-white">
-                        <button
-                          onClick={() => handleCategoryClick("Ağız Bakım", "Diş Fırçası")}
-                          className="block w-full text-left px-3 py-2.5 text-sm hover:bg-pink-50 rounded-md transition-colors duration-200 focus:bg-pink-100 focus:outline-none"
-                        >
-                          Diş Fırçaları
-                        </button>
-                        <button
-                          onClick={() => handleCategoryClick("Ağız Bakım", "Diş Macunu")}
-                          className="block w-full text-left px-3 py-2.5 text-sm hover:bg-pink-50 rounded-md transition-colors duration-200 focus:bg-pink-100 focus:outline-none"
-                        >
-                          Diş Macunları
-                        </button>
-                        <button
-                          onClick={() => handleCategoryClick("Ağız Bakım", "Ağız Suyu")}
-                          className="block w-full text-left px-3 py-2.5 text-sm hover:bg-pink-50 rounded-md transition-colors duration-200 focus:bg-pink-100 focus:outline-none"
-                        >
-                          Ağız Suları
-                        </button>
-                        <button
-                          onClick={() => handleCategoryClick("Ağız Bakım")}
-                          className="block w-full text-left px-3 py-2.5 text-sm hover:bg-pink-50 rounded-md transition-colors duration-200 focus:bg-pink-100 focus:outline-none font-medium border-t border-pink-100 mt-2 pt-2"
-                        >
-                          Tüm Ağız Bakım
-                        </button>
-                      </div>
-                    </NavigationMenuContent>
-                  </NavigationMenuItem>
+              {/* Ağız Bakım */}
+              <DropdownMenu
+                trigger="Ağız Bakım"
+                isOpen={openDropdown === "agiz-bakim"}
+                onToggle={() => toggleDropdown("agiz-bakim")}
+              >
+                <div className="p-2">
+                  <button
+                    onClick={() => handleCategoryClick("Ağız Bakım", "Diş Fırçası")}
+                    className="block w-full text-left px-3 py-2 text-sm hover:bg-pink-50 rounded-md transition-colors"
+                  >
+                    Diş Fırçaları
+                  </button>
+                  <button
+                    onClick={() => handleCategoryClick("Ağız Bakım", "Diş Macunu")}
+                    className="block w-full text-left px-3 py-2 text-sm hover:bg-pink-50 rounded-md transition-colors"
+                  >
+                    Diş Macunları
+                  </button>
+                  <button
+                    onClick={() => handleCategoryClick("Ağız Bakım", "Ağız Suyu")}
+                    className="block w-full text-left px-3 py-2 text-sm hover:bg-pink-50 rounded-md transition-colors"
+                  >
+                    Ağız Suları
+                  </button>
+                  <div className="border-t border-pink-100 my-2"></div>
+                  <button
+                    onClick={() => handleCategoryClick("Ağız Bakım")}
+                    className="block w-full text-left px-3 py-2 text-sm hover:bg-pink-50 rounded-md transition-colors font-medium"
+                  >
+                    Tüm Ağız Bakım
+                  </button>
+                </div>
+              </DropdownMenu>
 
-                  {/* Cilt Bakımı */}
-                  <NavigationMenuItem>
-                    <NavigationMenuTrigger className="bg-transparent hover:bg-pink-50 data-[state=open]:bg-pink-50 whitespace-nowrap text-sm px-3">
-                      Cilt Bakımı
-                    </NavigationMenuTrigger>
-                    <NavigationMenuContent>
-                      <div className="w-48 p-2">
-                        <button
-                          onClick={() => handleCategoryClick("Cilt Bakımı", "Yüz Bakımı")}
-                          className="block w-full text-left px-3 py-2 text-sm hover:bg-pink-50 rounded-md transition-colors"
-                        >
-                          Yüz Bakımı
-                        </button>
-                        <button
-                          onClick={() => handleCategoryClick("Cilt Bakımı", "Vücut Bakımı")}
-                          className="block w-full text-left px-3 py-2 text-sm hover:bg-pink-50 rounded-md transition-colors"
-                        >
-                          Vücut Bakımı
-                        </button>
-                        <button
-                          onClick={() => handleCategoryClick("Cilt Bakımı", "Güneş")}
-                          className="block w-full text-left px-3 py-2 text-sm hover:bg-pink-50 rounded-md transition-colors"
-                        >
-                          Güneş Ürünleri
-                        </button>
-                        <button
-                          onClick={() => handleCategoryClick("Cilt Bakımı")}
-                          className="block w-full text-left px-3 py-2 text-sm hover:bg-pink-50 rounded-md transition-colors font-medium border-t border-pink-100 mt-2 pt-2"
-                        >
-                          Tüm Cilt Bakımı
-                        </button>
-                      </div>
-                    </NavigationMenuContent>
-                  </NavigationMenuItem>
+              {/* Cilt Bakımı */}
+              <DropdownMenu
+                trigger="Cilt Bakımı"
+                isOpen={openDropdown === "cilt-bakimi"}
+                onToggle={() => toggleDropdown("cilt-bakimi")}
+              >
+                <div className="p-2">
+                  <button
+                    onClick={() => handleCategoryClick("Cilt Bakımı", "Yüz Bakımı")}
+                    className="block w-full text-left px-3 py-2 text-sm hover:bg-pink-50 rounded-md transition-colors"
+                  >
+                    Yüz Bakımı
+                  </button>
+                  <button
+                    onClick={() => handleCategoryClick("Cilt Bakımı", "Vücut Bakımı")}
+                    className="block w-full text-left px-3 py-2 text-sm hover:bg-pink-50 rounded-md transition-colors"
+                  >
+                    Vücut Bakımı
+                  </button>
+                  <button
+                    onClick={() => handleCategoryClick("Cilt Bakımı", "Güneş")}
+                    className="block w-full text-left px-3 py-2 text-sm hover:bg-pink-50 rounded-md transition-colors"
+                  >
+                    Güneş Ürünleri
+                  </button>
+                  <div className="border-t border-pink-100 my-2"></div>
+                  <button
+                    onClick={() => handleCategoryClick("Cilt Bakımı")}
+                    className="block w-full text-left px-3 py-2 text-sm hover:bg-pink-50 rounded-md transition-colors font-medium"
+                  >
+                    Tüm Cilt Bakımı
+                  </button>
+                </div>
+              </DropdownMenu>
 
-                  {/* Kişisel Bakım */}
-                  <NavigationMenuItem>
-                    <NavigationMenuTrigger className="bg-transparent hover:bg-pink-50 data-[state=open]:bg-pink-50 whitespace-nowrap text-sm px-3">
-                      Kişisel Bakım
-                    </NavigationMenuTrigger>
-                    <NavigationMenuContent>
-                      <div className="w-48 p-2">
-                        <button
-                          onClick={() => handleCategoryClick("Kişisel Bakım", "Tırnak")}
-                          className="block w-full text-left px-3 py-2 text-sm hover:bg-pink-50 rounded-md transition-colors"
-                        >
-                          Tırnak Bakımı
-                        </button>
-                        <button
-                          onClick={() => handleCategoryClick("Kişisel Bakım", "Banyo")}
-                          className="block w-full text-left px-3 py-2 text-sm hover:bg-pink-50 rounded-md transition-colors"
-                        >
-                          Banyo & Vücut
-                        </button>
-                        <button
-                          onClick={() => handleCategoryClick("Kişisel Bakım")}
-                          className="block w-full text-left px-3 py-2 text-sm hover:bg-pink-50 rounded-md transition-colors font-medium border-t border-pink-100 mt-2 pt-2"
-                        >
-                          Tüm Kişisel Bakım
-                        </button>
-                      </div>
-                    </NavigationMenuContent>
-                  </NavigationMenuItem>
+              {/* Kişisel Bakım */}
+              <DropdownMenu
+                trigger="Kişisel Bakım"
+                isOpen={openDropdown === "kisisel-bakim"}
+                onToggle={() => toggleDropdown("kisisel-bakim")}
+              >
+                <div className="p-2">
+                  <button
+                    onClick={() => handleCategoryClick("Kişisel Bakım", "Tırnak")}
+                    className="block w-full text-left px-3 py-2 text-sm hover:bg-pink-50 rounded-md transition-colors"
+                  >
+                    Tırnak Bakımı
+                  </button>
+                  <button
+                    onClick={() => handleCategoryClick("Kişisel Bakım", "Banyo")}
+                    className="block w-full text-left px-3 py-2 text-sm hover:bg-pink-50 rounded-md transition-colors"
+                  >
+                    Banyo & Vücut
+                  </button>
+                  <div className="border-t border-pink-100 my-2"></div>
+                  <button
+                    onClick={() => handleCategoryClick("Kişisel Bakım")}
+                    className="block w-full text-left px-3 py-2 text-sm hover:bg-pink-50 rounded-md transition-colors font-medium"
+                  >
+                    Tüm Kişisel Bakım
+                  </button>
+                </div>
+              </DropdownMenu>
 
-                  {/* Parfüm & Deodorant */}
-                  <NavigationMenuItem>
-                    <NavigationMenuTrigger className="bg-transparent hover:bg-pink-50 data-[state=open]:bg-pink-50 whitespace-nowrap text-sm px-3">
-                      Parfüm & Deodorant
-                    </NavigationMenuTrigger>
-                    <NavigationMenuContent>
-                      <div className="w-48 p-2">
-                        <button
-                          onClick={() => handleCategoryClick("Parfüm", "Kadın Deodorant")}
-                          className="block w-full text-left px-3 py-2 text-sm hover:bg-pink-50 rounded-md transition-colors"
-                        >
-                          Kadın Deodorant
-                        </button>
-                        <button
-                          onClick={() => handleCategoryClick("Parfüm", "Erkek Deodorant")}
-                          className="block w-full text-left px-3 py-2 text-sm hover:bg-pink-50 rounded-md transition-colors"
-                        >
-                          Erkek Deodorant
-                        </button>
-                        <button
-                          onClick={() => handleCategoryClick("Parfüm", "Parfüm")}
-                          className="block w-full text-left px-3 py-2 text-sm hover:bg-pink-50 rounded-md transition-colors"
-                        >
-                          Parfüm
-                        </button>
-                        <button
-                          onClick={() => handleCategoryClick("Parfüm")}
-                          className="block w-full text-left px-3 py-2 text-sm hover:bg-pink-50 rounded-md transition-colors font-medium border-t border-pink-100 mt-2 pt-2"
-                        >
-                          Tüm Parfüm & Deodorant
-                        </button>
-                      </div>
-                    </NavigationMenuContent>
-                  </NavigationMenuItem>
+              {/* Parfüm & Deodorant */}
+              <DropdownMenu
+                trigger="Parfüm & Deodorant"
+                isOpen={openDropdown === "parfum-deodorant"}
+                onToggle={() => toggleDropdown("parfum-deodorant")}
+              >
+                <div className="p-2">
+                  <button
+                    onClick={() => handleCategoryClick("Parfüm", "Kadın Deodorant")}
+                    className="block w-full text-left px-3 py-2 text-sm hover:bg-pink-50 rounded-md transition-colors"
+                  >
+                    Kadın Deodorant
+                  </button>
+                  <button
+                    onClick={() => handleCategoryClick("Parfüm", "Erkek Deodorant")}
+                    className="block w-full text-left px-3 py-2 text-sm hover:bg-pink-50 rounded-md transition-colors"
+                  >
+                    Erkek Deodorant
+                  </button>
+                  <button
+                    onClick={() => handleCategoryClick("Parfüm", "Parfüm")}
+                    className="block w-full text-left px-3 py-2 text-sm hover:bg-pink-50 rounded-md transition-colors"
+                  >
+                    Parfüm
+                  </button>
+                  <div className="border-t border-pink-100 my-2"></div>
+                  <button
+                    onClick={() => handleCategoryClick("Parfüm")}
+                    className="block w-full text-left px-3 py-2 text-sm hover:bg-pink-50 rounded-md transition-colors font-medium"
+                  >
+                    Tüm Parfüm & Deodorant
+                  </button>
+                </div>
+              </DropdownMenu>
 
-                  {/* Saç Bakımı */}
-                  <NavigationMenuItem>
-                    <NavigationMenuTrigger className="bg-transparent hover:bg-pink-50 data-[state=open]:bg-pink-50 whitespace-nowrap text-sm px-3">
-                      Saç Bakımı
-                    </NavigationMenuTrigger>
-                    <NavigationMenuContent>
-                      <div className="w-48 p-2">
-                        <button
-                          onClick={() => handleCategoryClick("Saç", "Şampuan")}
-                          className="block w-full text-left px-3 py-2 text-sm hover:bg-pink-50 rounded-md transition-colors"
-                        >
-                          Şampuan
-                        </button>
-                        <button
-                          onClick={() => handleCategoryClick("Saç", "Fırça")}
-                          className="block w-full text-left px-3 py-2 text-sm hover:bg-pink-50 rounded-md transition-colors"
-                        >
-                          Saç Fırçaları
-                        </button>
-                      </div>
-                    </NavigationMenuContent>
-                  </NavigationMenuItem>
+              {/* Saç Bakımı */}
+              <DropdownMenu
+                trigger="Saç Bakımı"
+                isOpen={openDropdown === "sac-bakimi"}
+                onToggle={() => toggleDropdown("sac-bakimi")}
+              >
+                <div className="p-2">
+                  <button
+                    onClick={() => handleCategoryClick("Saç", "Şampuan")}
+                    className="block w-full text-left px-3 py-2 text-sm hover:bg-pink-50 rounded-md transition-colors"
+                  >
+                    Şampuan
+                  </button>
+                  <button
+                    onClick={() => handleCategoryClick("Saç", "Fırça")}
+                    className="block w-full text-left px-3 py-2 text-sm hover:bg-pink-50 rounded-md transition-colors"
+                  >
+                    Saç Fırçaları
+                  </button>
+                  <div className="border-t border-pink-100 my-2"></div>
+                  <button
+                    onClick={() => handleCategoryClick("Saç")}
+                    className="block w-full text-left px-3 py-2 text-sm hover:bg-pink-50 rounded-md transition-colors font-medium"
+                  >
+                    Tüm Saç Bakımı
+                  </button>
+                </div>
+              </DropdownMenu>
 
-                  {/* Makyaj */}
-                  <NavigationMenuItem>
-                    <NavigationMenuTrigger className="bg-transparent hover:bg-pink-50 data-[state=open]:bg-pink-50 whitespace-nowrap text-sm px-3">
-                      Makyaj
-                    </NavigationMenuTrigger>
-                    <NavigationMenuContent>
-                      <div className="w-48 p-2">
-                        <button
-                          onClick={() => handleCategoryClick("Makyaj", "Ruj")}
-                          className="block w-full text-left px-3 py-2 text-sm hover:bg-pink-50 rounded-md transition-colors"
-                        >
-                          Ruj
-                        </button>
-                        <button
-                          onClick={() => handleCategoryClick("Makyaj", "Maskara")}
-                          className="block w-full text-left px-3 py-2 text-sm hover:bg-pink-50 rounded-md transition-colors"
-                        >
-                          Maskara
-                        </button>
-                        <button
-                          onClick={() => handleCategoryClick("Makyaj", "Fondöten")}
-                          className="block w-full text-left px-3 py-2 text-sm hover:bg-pink-50 rounded-md transition-colors"
-                        >
-                          Fondöten
-                        </button>
-                        <button
-                          onClick={() => handleCategoryClick("Makyaj", "Allık")}
-                          className="block w-full text-left px-3 py-2 text-sm hover:bg-pink-50 rounded-md transition-colors"
-                        >
-                          Allık
-                        </button>
-                        <button
-                          onClick={() => handleCategoryClick("Makyaj")}
-                          className="block w-full text-left px-3 py-2 text-sm hover:bg-pink-50 rounded-md transition-colors font-medium border-t border-pink-100 mt-2 pt-2"
-                        >
-                          Tüm Makyaj
-                        </button>
-                      </div>
-                    </NavigationMenuContent>
-                  </NavigationMenuItem>
+              {/* Makyaj */}
+              <DropdownMenu
+                trigger="Makyaj"
+                isOpen={openDropdown === "makyaj"}
+                onToggle={() => toggleDropdown("makyaj")}
+              >
+                <div className="p-2">
+                  <button
+                    onClick={() => handleCategoryClick("Makyaj", "Ruj")}
+                    className="block w-full text-left px-3 py-2 text-sm hover:bg-pink-50 rounded-md transition-colors"
+                  >
+                    Ruj
+                  </button>
+                  <button
+                    onClick={() => handleCategoryClick("Makyaj", "Maskara")}
+                    className="block w-full text-left px-3 py-2 text-sm hover:bg-pink-50 rounded-md transition-colors"
+                  >
+                    Maskara
+                  </button>
+                  <button
+                    onClick={() => handleCategoryClick("Makyaj", "Fondöten")}
+                    className="block w-full text-left px-3 py-2 text-sm hover:bg-pink-50 rounded-md transition-colors"
+                  >
+                    Fondöten
+                  </button>
+                  <button
+                    onClick={() => handleCategoryClick("Makyaj", "Allık")}
+                    className="block w-full text-left px-3 py-2 text-sm hover:bg-pink-50 rounded-md transition-colors"
+                  >
+                    Allık
+                  </button>
+                  <div className="border-t border-pink-100 my-2"></div>
+                  <button
+                    onClick={() => handleCategoryClick("Makyaj")}
+                    className="block w-full text-left px-3 py-2 text-sm hover:bg-pink-50 rounded-md transition-colors font-medium"
+                  >
+                    Tüm Makyaj
+                  </button>
+                </div>
+              </DropdownMenu>
 
-                  {/* Erkek Bakım */}
-                  <NavigationMenuItem>
-                    <NavigationMenuTrigger className="bg-transparent hover:bg-pink-50 data-[state=open]:bg-pink-50 whitespace-nowrap text-sm px-3">
-                      Erkek Bakım
-                    </NavigationMenuTrigger>
-                    <NavigationMenuContent>
-                      <div className="w-48 p-2">
-                        <button
-                          onClick={() => handleCategoryClick("Erkek", "Tıraş")}
-                          className="block w-full text-left px-3 py-2 text-sm hover:bg-pink-50 rounded-md transition-colors"
-                        >
-                          Tıraş Ürünleri
-                        </button>
-                        <button
-                          onClick={() => handleCategoryClick("Erkek", "Sakal")}
-                          className="block w-full text-left px-3 py-2 text-sm hover:bg-pink-50 rounded-md transition-colors"
-                        >
-                          Sakal Bakımı
-                        </button>
-                        <button
-                          onClick={() => handleCategoryClick("Erkek")}
-                          className="block w-full text-left px-3 py-2 text-sm hover:bg-pink-50 rounded-md transition-colors font-medium border-t border-pink-100 mt-2 pt-2"
-                        >
-                          Tüm Erkek Bakım
-                        </button>
+              {/* Erkek Bakım */}
+              <DropdownMenu
+                trigger="Erkek Bakım"
+                isOpen={openDropdown === "erkek-bakim"}
+                onToggle={() => toggleDropdown("erkek-bakim")}
+              >
+                <div className="p-2">
+                  <button
+                    onClick={() => handleCategoryClick("Erkek", "Tıraş")}
+                    className="block w-full text-left px-3 py-2 text-sm hover:bg-pink-50 rounded-md transition-colors"
+                  >
+                    Tıraş Ürünleri
+                  </button>
+                  <button
+                    onClick={() => handleCategoryClick("Erkek", "Sakal")}
+                    className="block w-full text-left px-3 py-2 text-sm hover:bg-pink-50 rounded-md transition-colors"
+                  >
+                    Sakal Bakımı
+                  </button>
+                  <div className="border-t border-pink-100 my-2"></div>
+                  <button
+                    onClick={() => handleCategoryClick("Erkek")}
+                    className="block w-full text-left px-3 py-2 text-sm hover:bg-pink-50 rounded-md transition-colors font-medium"
+                  >
+                    Tüm Erkek Bakım
+                  </button>
+                </div>
+              </DropdownMenu>
+
+              {/* Desktop User Menu */}
+              <div className="ml-auto">
+                {!loading && (
+                  <>
+                    {user ? (
+                      <DropdownMenu
+                        trigger={
+                          <div className="flex items-center gap-2">
+                            <User className="w-4 h-4" />
+                            {user.email?.split("@")[0] || "Hesabım"}
+                          </div>
+                        }
+                        isOpen={userDropdownOpen}
+                        onToggle={() => setUserDropdownOpen(!userDropdownOpen)}
+                      >
+                        <div className="p-2">
+                          <Link
+                            href="/hesabim"
+                            className="block px-3 py-2 text-sm hover:bg-pink-50 rounded-md transition-colors"
+                            onClick={() => setUserDropdownOpen(false)}
+                          >
+                            Hesabım
+                          </Link>
+                          <Link
+                            href="/siparislerim"
+                            className="block px-3 py-2 text-sm hover:bg-pink-50 rounded-md transition-colors"
+                            onClick={() => setUserDropdownOpen(false)}
+                          >
+                            Siparişlerim
+                          </Link>
+                          <div className="border-t border-pink-100 my-2"></div>
+                          <Link
+                            href="/admin"
+                            className="block px-3 py-2 text-sm hover:bg-pink-50 rounded-md transition-colors text-pink-700 font-medium"
+                            onClick={() => setUserDropdownOpen(false)}
+                          >
+                            Admin Panel
+                          </Link>
+                          <div className="border-t border-pink-100 my-2"></div>
+                          <button
+                            onClick={handleLogout}
+                            className="flex items-center w-full px-3 py-2 text-sm hover:bg-pink-50 rounded-md transition-colors text-red-600"
+                          >
+                            <LogOut className="w-4 h-4 mr-2" />
+                            Çıkış Yap
+                          </button>
+                        </div>
+                      </DropdownMenu>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <Link href="/auth/login">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-pink-600 hover:text-pink-700 hover:bg-pink-50"
+                          >
+                            Giriş Yap
+                          </Button>
+                        </Link>
+                        <Link href="/auth/register">
+                          <Button
+                            size="sm"
+                            className="bg-gradient-to-r from-pink-600 to-purple-500 hover:from-pink-700 hover:to-purple-600"
+                          >
+                            Üye Ol
+                          </Button>
+                        </Link>
                       </div>
-                    </NavigationMenuContent>
-                  </NavigationMenuItem>
-                </NavigationMenuList>
-              </NavigationMenu>
+                    )}
+                  </>
+                )}
+              </div>
             </div>
           </div>
         </div>
